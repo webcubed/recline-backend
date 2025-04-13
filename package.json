@@ -1,0 +1,38 @@
+{
+	"name": "recline-backend",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"type": "module",
+	"scripts": {
+		"test": "xo",
+		"format": "prettier --write .",
+		"xo": "xo --prettier",
+		"xo:fix": "xo --fix --prettier"
+	},
+	"keywords": [],
+	"author": "webcubed",
+	"license": "ISC",
+	"dependencies": {
+		"axios": "^1.8.4",
+		"dotenv": "^16.5.0",
+		"express": "^5.1.0",
+		"prettier": "^3.5.3",
+		"recline-backend": "file:",
+		"xml2js": "^0.6.2"
+	},
+	"devDependencies": {
+		"globals": "16.0.0",
+		"xo": "^0.60.0"
+	},
+	"xo": {
+		"envs": [
+			"node"
+		],
+		"rules": {
+			"no-new": "off",
+			"no-undef": "off",
+			"radix": "off"
+		}
+	}
+}
