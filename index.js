@@ -6,12 +6,70 @@ import { parseString } from "xml2js";
 
 dotenv.config();
 const app = express();
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
+
+const whitedlistedEmails = Array.from(process.env.WHITELISTED_EMAILS.split(","));
+// Will get reset every time redeployed.
+const storage = {
+	accounts: {},
+};
+
+app.get("/genCode", async (request, response) => {
+	const { account, name } = request.body;
+	// Reject if account isn't whitelisted
+	if (!whitedlistedEmails.includes(account)) {
+		response.status(403).send("Account not whitelisted");
+		return;
+	}
+
+	let code = Array.from({ length: 18 })
+		.map(() => {
+			const charPool = [
+				...Array.from({ length: 10 }, (_, i) => i + 48), // Numbers 0-9
+				...Array.from({ length: 26 }, (_, i) => i + 65), // Uppercase A-Z
+				...Array.from({ length: 26 }, (_, i) => i + 97), // Lowercase a-z
+				33, // Exclamation mark
+				64, // At sign
+				35, // Number sign
+				36, // Dollar sign
+				37, // Percent sign
+				94, // Caret
+				38, // Ampersand
+				42, // Asterisk
+			];
+			return String.fromCodePoint(
+				charPool[Math.floor(Math.random() * charPool.length)]
+			);
+		})
+		.join("");
+	code = Buffer.from(code).toString("base64");
+
+	storage.accounts[account] = {
+		name,
+		code,
+	};
+	response.json({ code, account });
+});
+app.get("sendMessage", async (request, response) => {
+	const { account, code, message } = JSON.parse(request.body);
+	const { name } = storage.accounts[account];
+	if (code !== storage.accounts[account].code) {
+		response.send("Invalid code");
+		return;
+	}
+	// Do something cool with this eventually
+
+	response.send("work in progress");
+});
 async function fetchInbox() {
 	const response = await axios.request(JSON.parse(process.env.REQUEST_OPTIONS));
 	return response.data;
 }
 
-app.get("/auth", async (request, response) => {
+app.get("/check", async (request, response) => {
+	const { account, code } = request.body;
+	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
 	let parsedData;
 	parseString(xmlData, (error, result) => {
@@ -51,13 +109,21 @@ app.get("/auth", async (request, response) => {
 				/is requesting access to the following document: (.+) auth Manage sharing/g
 			),
 		];
-		const code = codeMatches.length > 0 ? codeMatches[0][1] : undefined;
+		const parsedCode = codeMatches.length > 0 ? codeMatches[0][1] : undefined;
 		console.log(`Author: ${authorName}`);
 		console.log(`Mail: ${authorMail}`);
-		console.log(`Code: ${code}`);
-	}
+		console.log(`Code: ${parsedCode}`);
 
-	response.send(parsedData);
+		// If accounts match
+		if (authorMail === account && parsedCode === code) {
+			console.log("matches nicely");
+			// Approval
+			response.send("authorized :>");
+			// This should only be used to load the dashboard.
+			// Subsequent requests should also cross check the code.
+			return;
+		}
+	}
 });
 
 app.listen(3000, () => {
