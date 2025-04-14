@@ -11,6 +11,7 @@
 		"xo": "xo --prettier",
 		"xo:fix": "xo --fix --prettier"
 	},
+	"packageManager": "pnpm@9.12.2",
 	"keywords": [],
 	"author": "webcubed",
 	"license": "ISC",
@@ -21,7 +22,7 @@
 		"jsonwebtoken": "^9.0.2",
 		"prettier": "^3.5.3",
 		"recline-backend": "file:",
-		"wrangler": "^4.10.0",
+		"vercel": "^41.6.0",
 		"xml2js": "^0.6.2"
 	},
 	"devDependencies": {
