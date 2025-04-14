@@ -19,6 +19,13 @@ const storage = {
 
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
+	response.setHeader(
+		"Access-Control-Allow-Origin",
+		"https://webcubed.is-a.dev"
+	);
+	response.setHeader("Access-Control-Allow-Headers", "*");
+	response.setHeader("Access-Control-Allow-Methods", "*");
+	response.setHeader("Access-Control-Allow-Credentials", "true");
 	// Reject if account isn't whitelisted
 	if (!whitedlistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
@@ -55,6 +62,13 @@ app.post("/genCode", async (request, response) => {
 });
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = JSON.parse(request.body);
+	response.setHeader(
+		"Access-Control-Allow-Origin",
+		"https://webcubed.is-a.dev"
+	);
+	response.setHeader("Access-Control-Allow-Headers", "*");
+	response.setHeader("Access-Control-Allow-Methods", "*");
+	response.setHeader("Access-Control-Allow-Credentials", "true");
 	const { name } = storage.accounts[account];
 	if (code !== storage.accounts[account].code) {
 		response.send("Invalid code");
@@ -71,6 +85,14 @@ async function fetchInbox() {
 
 app.post("/check", async (request, response) => {
 	const { account, code } = request.body;
+	response.setHeader(
+		"Access-Control-Allow-Origin",
+		"https://webcubed.is-a.dev"
+	);
+	response.setHeader("Access-Control-Allow-Headers", "*");
+	response.setHeader("Access-Control-Allow-Methods", "*");
+	response.setHeader("Access-Control-Allow-Credentials", "true");
+
 	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
 	let parsedData;
