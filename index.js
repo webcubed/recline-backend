@@ -10,7 +10,10 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
 	resource.header("Access-Control-Allow-Origin", "*");
-	resource.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+	resource.header(
+		"Access-Control-Allow-Methods",
+		"GET, POST, PUT, DELETE, OPTIONS"
+	);
 	resource.header(
 		"Access-Control-Allow-Headers",
 		"Content-Type, Authorization"
