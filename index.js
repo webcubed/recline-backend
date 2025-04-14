@@ -8,7 +8,15 @@ dotenv.config();
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use((request, resource, next) => {
+	resource.header("Access-Control-Allow-Origin", "*");
+	resource.header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE");
+	resource.header(
+		"Access-Control-Allow-Headers",
+		"Content-Type, Authorization"
+	);
+	next();
+});
 const whitedlistedEmails = new Set(
 	Array.from(process.env.WHITELISTED_EMAILS.split(","))
 );
@@ -19,12 +27,6 @@ const storage = {
 
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
-	response.set({
-		"Access-Control-Allow-Origin": "https://webcubed.is-a.dev",
-		"Access-Control-Allow-Headers": "*",
-		"Access-Control-Allow-Methods": "*",
-		"Access-Control-Allow-Credentials": "true",
-	});
 	// Reject if account isn't whitelisted
 	if (!whitedlistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
@@ -61,12 +63,6 @@ app.post("/genCode", async (request, response) => {
 });
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = JSON.parse(request.body);
-	response.set({
-		"Access-Control-Allow-Origin": "https://webcubed.is-a.dev",
-		"Access-Control-Allow-Headers": "*",
-		"Access-Control-Allow-Methods": "*",
-		"Access-Control-Allow-Credentials": "true",
-	});
 	const { name } = storage.accounts[account];
 	if (code !== storage.accounts[account].code) {
 		response.send("Invalid code");
@@ -83,12 +79,6 @@ async function fetchInbox() {
 
 app.post("/check", async (request, response) => {
 	const { account, code } = request.body;
-	response.set({
-		"Access-Control-Allow-Origin": "https://webcubed.is-a.dev",
-		"Access-Control-Allow-Headers": "*",
-		"Access-Control-Allow-Methods": "*",
-		"Access-Control-Allow-Credentials": "true",
-	});
 
 	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
