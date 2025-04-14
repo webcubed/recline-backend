@@ -9,7 +9,7 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
-	resource.header("Access-Control-Allow-Origin", "https://webcubed.is-a.dev/");
+	resource.header("Access-Control-Allow-Origin", "https://webcubed.is-a.dev");
 	resource.header(
 		"Access-Control-Allow-Methods",
 		"GET, POST, PUT, DELETE, OPTIONS"
