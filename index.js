@@ -20,10 +20,9 @@ app.use((request, resource, next) => {
 	);
 	next();
 });
-const whitedlistedEmails = Array.from(
-	process.env.WHITELISTED_EMAILS.split(", ")
+const whitedlistedEmails = new Set(
+	Array.from(process.env.WHITELISTED_EMAILS.split("\"', '\""))
 );
-
 // Will get reset every time redeployed.
 const storage = {
 	accounts: {},
