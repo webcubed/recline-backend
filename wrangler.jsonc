@@ -2,5 +2,6 @@
 	"name": "recline-backend",
 	"main": "./index.js",
 	"compatibility_date": "2025-04-14",
-	"workers_dev": true
+	"workers_dev": true,
+	"compatibility_flags": ["nodejs_compat", "nodejs_compat_populate_process_env"]
 }
