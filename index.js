@@ -53,7 +53,7 @@ app.get("/genCode", async (request, response) => {
 	};
 	response.json({ code, account });
 });
-app.get("sendMessage", async (request, response) => {
+app.post("sendMessage", async (request, response) => {
 	const { account, code, message } = JSON.parse(request.body);
 	const { name } = storage.accounts[account];
 	if (code !== storage.accounts[account].code) {

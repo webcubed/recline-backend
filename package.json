@@ -11,7 +11,7 @@
 		"xo": "xo --prettier",
 		"xo:fix": "xo --fix --prettier"
 	},
-	"packageManager": "pnpm@9.12.2",
+	"packageManager": "pnpm@10.8.1",
 	"keywords": [],
 	"author": "webcubed",
 	"license": "ISC",
