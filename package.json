@@ -17,6 +17,7 @@
 		"axios": "^1.8.4",
 		"dotenv": "^16.5.0",
 		"express": "^5.1.0",
+		"jsonwebtoken": "^9.0.2",
 		"prettier": "^3.5.3",
 		"recline-backend": "file:",
 		"xml2js": "^0.6.2"
