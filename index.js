@@ -9,7 +9,9 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-const whitedlistedEmails = Array.from(process.env.WHITELISTED_EMAILS.split(","));
+const whitedlistedEmails = new Set(
+	Array.from(process.env.WHITELISTED_EMAILS.split(","))
+);
 // Will get reset every time redeployed.
 const storage = {
 	accounts: {},
@@ -18,7 +20,7 @@ const storage = {
 app.get("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
-	if (!whitedlistedEmails.includes(account)) {
+	if (!whitedlistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
 		return;
 	}
@@ -115,7 +117,11 @@ app.get("/check", async (request, response) => {
 		console.log(`Code: ${parsedCode}`);
 
 		// If accounts match
-		if (authorMail === account && parsedCode === code) {
+		if (
+			authorMail === account &&
+			parsedCode === code &&
+			parsedCode === storage[account].code
+		) {
 			console.log("matches nicely");
 			// Approval
 			response.send("authorized :>");
