@@ -1,1 +1,4 @@
+name = "recline-backend"
+main = "index.js"
+workers_dev = true
 compatibility_flags = [ "nodejs_compat", "nodejs_compat_populate_process_env" ]
