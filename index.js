@@ -10,11 +10,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 const whitedlistedEmails = new Set(
-	Array.from(
-		WHITELISTED_EMAILS
-			? WHITELISTED_EMAILS.split(",")
-			: process.env.WHITELISTED_EMAILS.split(",")
-	)
+	Array.from(process.env.WHITELISTED_EMAILS.split(","))
 );
 // Will get reset every time redeployed.
 const storage = {
@@ -69,9 +65,7 @@ app.get("sendMessage", async (request, response) => {
 	response.send("work in progress");
 });
 async function fetchInbox() {
-	const response = await axios.request(
-		JSON.parse(REQUEST_OPTIONS || process.env.REQUEST_OPTIONS)
-	);
+	const response = await axios.request(JSON.parse(process.env.REQUEST_OPTIONS));
 	return response.data;
 }
 
