@@ -17,7 +17,7 @@ const storage = {
 	accounts: {},
 };
 
-app.get("/genCode", async (request, response) => {
+app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
 	if (!whitedlistedEmails.has(account)) {
@@ -69,7 +69,7 @@ async function fetchInbox() {
 	return response.data;
 }
 
-app.get("/check", async (request, response) => {
+app.post("/check", async (request, response) => {
 	const { account, code } = request.body;
 	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
