@@ -29,7 +29,7 @@ const storage = {
 };
 
 app.post("/genCode", async (request, response) => {
-	const { account, name } = request.body;
+	const { account, name } = JSON.parse(request.body);
 	// Reject if account isn't whitelisted
 	if (!whitedlistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
@@ -81,7 +81,7 @@ async function fetchInbox() {
 }
 
 app.post("/check", async (request, response) => {
-	const { account, code } = request.body;
+	const { account, code } = JSON.parse(request.body);
 
 	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
