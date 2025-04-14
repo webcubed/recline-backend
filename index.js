@@ -11,9 +11,7 @@ app.use(express.urlencoded({ extended: true }));
 
 const whitedlistedEmails = new Set(
 	Array.from(
-		process.env.CF_PAGES
-			? WHITELISTED_EMAILS
-			: process.env.WHITELISTED_EMAILS.split(",")
+		CF_PAGES ? WHITELISTED_EMAILS : process.env.WHITELISTED_EMAILS.split(",")
 	)
 );
 // Will get reset every time redeployed.
@@ -70,9 +68,7 @@ app.get("sendMessage", async (request, response) => {
 });
 async function fetchInbox() {
 	const response = await axios.request(
-		JSON.parse(
-			process.env.CF_PAGES ? REQUEST_OPTIONS : process.env.REQUEST_OPTIONS
-		)
+		JSON.parse(CF_PAGES ? REQUEST_OPTIONS : process.env.REQUEST_OPTIONS)
 	);
 	return response.data;
 }
