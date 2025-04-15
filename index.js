@@ -132,7 +132,7 @@ app.post("/check", async (request, response) => {
 		if (
 			authorMail === account &&
 			parsedCode === code &&
-			parsedCode === storage.accounts[account].code
+			parsedCode === storage.accounts[account]?.code
 		) {
 			console.log("matches nicely");
 			// Approval
