@@ -11,11 +11,11 @@ This is a port to connect discord and web chats, sending via webhook, and readin
 
 ### Authentication
 
-Code is generated on server, displayed to user on frontend (/genCode endpoint) (Done serverside)
-User on frontend must send the request via school mail in order to authenticate (Done serverside)
-Server detects this on request to the /check endpoint (Done serverside)
-If ok, we let them in
-Subsequent requests will also include the code/token in the request, stored in local storage
+- [x] Code is generated on server, displayed to user on frontend (/genCode endpoint)
+- [x] User on frontend must send the request via school mail in order to authenticate
+- [x] Server detects this on request to the /check endpoint
+- [x] If ok, we let them in
+- [x] Subsequent requests will also include the code/token in the request, stored in local storage
 
 ### Messaging
 

@@ -1,7 +1,8 @@
 import process from "node:process";
-import express from "express";
-import dotenv from "dotenv";
+// eslint-disable-next-line sort-imports
 import axios from "axios";
+import dotenv from "dotenv";
+import express from "express";
 import { parseString } from "xml2js";
 
 dotenv.config();
@@ -79,6 +80,15 @@ async function fetchInbox() {
 	const response = await axios.request(JSON.parse(process.env.REQUEST_OPTIONS));
 	return response.data;
 }
+
+app.post("/checkSession", async (request, response) => {
+	const { account, code } = request.body;
+	if (code === storage.accounts[account].code) {
+		response.send("authorized :>");
+	} else {
+		response.send("Invalid code");
+	}
+});
 
 app.post("/check", async (request, response) => {
 	const { account, code } = request.body;

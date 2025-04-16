@@ -23,10 +23,11 @@
 		"jsonwebtoken": "^9.0.2",
 		"prettier": "^3.5.3",
 		"recline-backend": "file:",
-		"vercel": "^41.6.0",
+		"vercel": "41.6.1",
 		"xml2js": "^0.6.2"
 	},
 	"devDependencies": {
+		"@trivago/prettier-plugin-sort-imports": "^5.2.2",
 		"globals": "16.0.0",
 		"xo": "^0.60.0"
 	},
@@ -37,7 +38,8 @@
 		"rules": {
 			"no-new": "off",
 			"no-undef": "off",
-			"radix": "off"
+			"radix": "off",
+			"sort-imports": "error"
 		}
 	}
 }
