@@ -1,10 +1,8 @@
 import process from "node:process";
-// eslint-disable-next-line sort-imports
-import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
-import { json } from "node:stream/consumers";
+import { XMLHttpRequest } from "xmlhttprequest";
 
 dotenv.config();
 const app = express();
@@ -76,8 +74,28 @@ app.post("/sendMessage", async (request, response) => {
 	response.send("work in progress");
 });
 async function fetchInbox() {
-	const response = await axios.request(JSON.parse(process.env.REQUEST_OPTIONS));
-	return response.data;
+	const xhr = new XMLHttpRequest();
+	xhr.withCredentials = true;
+
+	xhr.open(
+		"GET",
+		"https://mail.google.com/mail/feed/atom/auth",
+		true,
+		process.env.EMAIL,
+		process.env.PASSWORD
+	);
+	xhr.send();
+	return new Promise((resolve, reject) => {
+		xhr.addEventListener("readystatechange", function () {
+			if (xhr.readyState === 4) {
+				if (xhr.status === 200) {
+					resolve(xhr.responseText);
+				} else {
+					reject(new Error("Failed to fetch inbox"));
+				}
+			}
+		});
+	});
 }
 
 app.post("/checkSession", async (request, response) => {
