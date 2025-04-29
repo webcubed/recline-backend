@@ -4,6 +4,7 @@ import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
+import { json } from "node:stream/consumers";
 
 dotenv.config();
 const app = express();
@@ -21,7 +22,7 @@ app.use((request, resource, next) => {
 	);
 	next();
 });
-const whitedlistedEmails = new Set(process.env.WHITELISTED_EMAILS);
+const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
 // Will get reset every time redeployed.
 const storage = {
 	accounts: {},
@@ -30,7 +31,7 @@ const storage = {
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
-	if (!whitedlistedEmails.has(account)) {
+	if (!whitelistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
 		return;
 	}
