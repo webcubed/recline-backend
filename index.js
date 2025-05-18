@@ -172,7 +172,7 @@ app.post("/check", async (request, response) => {
 });
 
 app.listen(3000, () => {
-	console.log("Example app listening on port 3000!");
+	console.log("app listening on port 3000");
 });
 
 export default app;
