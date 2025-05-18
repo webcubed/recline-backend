@@ -1,8 +1,8 @@
 import process from "node:process";
-import dotenv from "dotenv";
+import dotenv from "dotenv"; // eslint-disable-line sort-imports
 import express from "express";
 import { parseString } from "xml2js";
-import { XMLHttpRequest } from "xmlhttprequest";
+import { XMLHttpRequest } from "xmlhttprequest"; // eslint-disable-line sort-imports
 
 dotenv.config();
 const app = express();
