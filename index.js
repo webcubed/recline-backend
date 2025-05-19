@@ -1,5 +1,6 @@
 import process from "node:process";
-import dotenv from "dotenv"; // eslint-disable-line sort-imports
+import { Client, GatewayIntentBits } from "discord.js"; // eslint-disable-line sort-imports
+import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
 import { XMLHttpRequest } from "xmlhttprequest"; // eslint-disable-line sort-imports
@@ -25,6 +26,65 @@ const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
 const storage = {
 	accounts: {},
 };
+const token = process.env.DISCORD_TOKEN;
+const client = new Client({
+	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+});
+client.once("ready", () => {
+	console.log("bot ready");
+});
+client.on("messageCreate", (message) => {
+	// This is when a message gets sent from discord; discord -> client
+	if (message.author.bot || message.channelId !== process.env.CHANNEL_ID)
+		return; // Ignore bot messages
+	// Read message, gather ID, send to client
+});
+
+client.login(token);
+
+function messageToWebhook(message) {
+	// This function should send the message to a webhook; client -> discord
+	console.log(
+		`%cMessage to send: %c${message.content} %cFrom: ${message.author.username}`,
+		"color: #8aadf4",
+		"color: #cad3f5",
+		"color: #c6a0f6"
+	);
+	// Create a webhook in the channel if not already existing
+}
+
+async function fetchMessages(continueId = null) {
+	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
+	const messages = [];
+
+	// Start fetching messages from the continueId if provided
+	let message = continueId
+		? await channel.messages.fetch(continueId)
+		: await channel.messages
+				.fetch({ limit: 1 })
+				.then((messagePage) =>
+					messagePage.size === 1 ? messagePage.at(0) : null
+				);
+
+	let hasMore = true;
+	let lastMessageId = null;
+	while (hasMore && message) {
+		// eslint-disable-next-line no-await-in-loop
+		const messagePage = await channel.messages.fetch({
+			limit: 50,
+			before: message.id,
+		});
+		for (const message_ of messagePage) messages.push(message_);
+		if (messagePage.size > 0) {
+			message = messagePage.at(messagePage.size - 1);
+			lastMessageId = message.id;
+		} else {
+			hasMore = false;
+		}
+	}
+
+	return { messages, continueId: lastMessageId };
+}
 
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;

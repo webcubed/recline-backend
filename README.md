@@ -19,6 +19,11 @@ This is a port to connect discord and web chats, sending via webhook, and readin
 
 ### Messaging
 
+- [ ] Create Webhook for each user
+- [ ] Send message via webhook
+- [ ] Fetch message via bot
+- [ ] Message creation on client
+
 Messages are sent to the server via the /sendMessage endpoint
 The server will check the token in the request, and if it is valid, it will send the message to the webhook
 We can have chats through
