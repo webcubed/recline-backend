@@ -18,6 +18,16 @@ client.on("messageCreate", (message) => {
 	if (message.author.bot || message.channelId !== process.env.CHANNEL_ID)
 		return; // Ignore bot messages
 	// Read message, gather ID, send to client
+	if (message.channelId === process.env.CHANNEL_ID) {
+		console.log(
+			`%cMessage from: %c${message.author.username} %cMessage: ${message.content}`,
+			"color: #8aadf4",
+			"color: #cad3f5",
+			"color: #c6a0f6"
+		);
+	} else if (message.channelId === process.env.API_CHANNEL_ID) {
+		// For messages between api and bot (api sends webhook, bot picks up message)
+	}
 });
 
 client.login(token);
