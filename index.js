@@ -1,5 +1,8 @@
 import process from "node:process";
-import dotenv from "dotenv"; // eslint-disable-line sort-imports
+// eslint-disable-next-line sort-imports
+import * as Ably from "ably";
+import axios from "axios";
+import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
 import { XMLHttpRequest } from "xmlhttprequest"; // eslint-disable-line sort-imports
@@ -25,6 +28,12 @@ const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
 const storage = {
 	accounts: {},
 };
+
+function messageToBot(message) {
+	// Communication with bot
+	// For ex. setting changes on client go thru here then to bot?
+	axios.post(process.env.API_WEBHOOK, message);
+}
 
 function messageToWebhook(message) {
 	// This function should send the message to a webhook; client -> discord
@@ -84,6 +93,31 @@ app.post("/sendMessage", async (request, response) => {
 	// Do something cool with this eventually
 	// Use webhook
 	response.send("work in progress");
+});
+app.post("/fetchMessages", async (request, response) => {
+	const { account, code } = request.body;
+	const { name } = storage.accounts[account];
+});
+app.post("/newMessage", async (request, response) => {
+	const { account, code, message } = request.body;
+	const { name } = storage.accounts[account];
+});
+app.get("/userToMail", async (request, response) => {
+	const { code, username } = request.body;
+	if (code !== process.env.SECRET_CODE) {
+		response.status(403).send("Invalid code");
+		return;
+	}
+
+	const account = Object.keys(storage.accounts).find(
+		(account) => storage.accounts[account].name === username
+	);
+	if (!account) {
+		response.status(404).send("Account not found");
+		return;
+	}
+
+	response.send({ account, code: storage.accounts[account].code });
 });
 async function fetchInbox() {
 	const xhr = new XMLHttpRequest();

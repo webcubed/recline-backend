@@ -1,8 +1,10 @@
 import process from "node:process";
 // eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
+import axios from "axios";
 import dotenv from "dotenv";
 
+const apiBaseUrl = "https://recline-backend.vercel.app";
 /* ------------------------------ set up dotenv ----------------------------- */
 dotenv.config();
 /* --------------------------- set up discord bot --------------------------- */
@@ -13,7 +15,7 @@ const client = new Client({
 client.once("ready", () => {
 	console.log("bot ready");
 });
-client.on("messageCreate", (message) => {
+client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
 	if (message.author.bot || message.channelId !== process.env.CHANNEL_ID)
 		return; // Ignore bot messages
@@ -25,8 +27,27 @@ client.on("messageCreate", (message) => {
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
+		const { data: mail } = await axios.post(`${apiBaseUrl}/userToMail`, {
+			username: message.author.username,
+			code: process.env.SECRET_CODE,
+		});
+		axios.post(`${apiBaseUrl}/newMessage`, {
+			message,
+			code: process.env.SECRET_CODE,
+			account: mail,
+		});
 	} else if (message.channelId === process.env.API_CHANNEL_ID) {
 		// For messages between api and bot (api sends webhook, bot picks up message)
+		if (message.content === "fetch messages") {
+			const { continueId } = await fetchMessages();
+			return axios.post(`${apiBaseUrl}/fetchMessages`, { continueId });
+		}
+
+		if (message.content.includes("fetch messages from ")) {
+			const { continueId } = message.content.split("fetch messages from ")[1];
+			const { messages, newContinueId } = await fetchMessages(continueId);
+			axios.post(`${apiBaseUrl}/fetchMessages`, { messages, newContinueId });
+		}
 	}
 });
 

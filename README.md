@@ -20,6 +20,11 @@ This is a port to connect discord and web chats, sending via webhook, and readin
 ### Messaging
 
 Due to vercel complications, we now have to do something different
+Client -> api
+Api -> Client via websocket
+Api -> bot via webhook
+Bot -> Api via endpoint
+chat using ably
 
 - [ ] Create Webhook for each user on bot server
 - [ ] Send message via webhook on api server
