@@ -24,9 +24,9 @@ Client -> api
 Api -> Client via websocket
 Api -> bot via webhook
 Bot -> Api via endpoint
-chat using ably
+chat/realtime functions using ably
 
-- [ ] Create Webhook for each user on bot server
+- [ ] Create Webhook for each user on bot server WILL be done manually
 - [ ] Send message via webhook on api server
 - [ ] Fetch message via bot on bot server -> api server thru post request
 - [ ] Message creation on client on api server -> bot server

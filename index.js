@@ -31,21 +31,9 @@ const storage = {
 };
 
 function messageToBot(message) {
-	// Communication with bot
+	// Communication with bot via api webhook
 	// For ex. setting changes on client go thru here then to bot?
 	axios.post(process.env.API_WEBHOOK, message);
-}
-
-function messageToWebhook(message) {
-	// This function should send the message to a webhook; client -> discord
-	console.log(
-		`%cMessage to send: %c${message.content} %cFrom: ${message.author.username}`,
-		"color: #8aadf4",
-		"color: #cad3f5",
-		"color: #c6a0f6"
-	);
-	// Create a webhook in the channel if not already existing
-	// We need to be able to talk to the bot (express server?)
 }
 
 async function fetchMessagesFromBot(continueId = null) {
