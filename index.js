@@ -1,6 +1,7 @@
 import process from "node:process";
 // eslint-disable-next-line sort-imports
 import * as Ably from "ably";
+import * as edgeConfig from "@vercel/edge-config";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
@@ -24,7 +25,7 @@ app.use((request, resource, next) => {
 	next();
 });
 const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
-// Will get reset every time redeployed.
+// Will not persist because vercel goofy
 const storage = {
 	accounts: {},
 };
@@ -45,6 +46,28 @@ function messageToWebhook(message) {
 	);
 	// Create a webhook in the channel if not already existing
 	// We need to be able to talk to the bot (express server?)
+}
+
+async function fetchMessagesFromBot(continueId = null) {
+	if (continueId) {
+		try {
+			const response = await axios.post(process.env.API_WEBHOOK, {
+				content: `fetch messages from ${continueId}`,
+			});
+			return response.data;
+		} catch (error) {
+			return console.error(error);
+		}
+	} else {
+		try {
+			const response = await axios.post(process.env.API_WEBHOOK, {
+				content: "fetch messages",
+			});
+			return response.data;
+		} catch (error) {
+			return console.error(error);
+		}
+	}
 }
 
 app.post("/genCode", async (request, response) => {
@@ -96,10 +119,18 @@ app.post("/sendMessage", async (request, response) => {
 });
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code } = request.body;
-	const { name } = storage.accounts[account];
+	// Verify code
+	if (code !== storage.accounts[account].code) {
+		response.send("Invalid code");
+		return;
+	}
+
+	// Fetch messages
+	response.send(fetchMessagesFromBot());
 });
 app.post("/newMessage", async (request, response) => {
-	const { account, code, message } = request.body;
+	// If someone sends a message from discord
+	const { message, code, account } = request.body;
 	const { name } = storage.accounts[account];
 });
 app.get("/userToMail", async (request, response) => {
