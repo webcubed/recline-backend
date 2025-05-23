@@ -26,16 +26,16 @@ app.use((request, resource, next) => {
 });
 const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
 
-function getStorage() {
-	return JSON.parse(edgeConfig.get("storage"));
+async function getStorage() {
+	return JSON.parse(await edgeConfig.get("storage"));
 }
 
-function editStorage(operation, key, value) {
+async function editStorage(operation, key, value) {
 	// Operation can be "create", "update", "upsert", "delete"
 	// Key is the name
 	// Value is the value to be assigned to key
 	value = JSON.stringify(value);
-	axios.post(`https://api.vercel.com/v1/edge-config`, {
+	await axios.post(`https://api.vercel.com/v1/edge-config`, {
 		headers: {
 			Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`,
 			"Content-Type": "application/json",
