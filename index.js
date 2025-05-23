@@ -230,6 +230,9 @@ app.post("/check", async (request, response) => {
 	const count = parsedData.feed.fullcount[0];
 	console.log(`Count: ${count}`);
 	const entries = parsedData.feed.entry;
+	const storage = await getStorage();
+	const accountCode = storage.accounts[account]?.code;
+
 	for (const entry of entries) {
 		const title = entry.title[0];
 		const summary = entry.summary[0];
@@ -264,7 +267,7 @@ app.post("/check", async (request, response) => {
 		if (
 			authorMail === account &&
 			parsedCode === code &&
-			parsedCode === (await getStorage().accounts[account]?.code)
+			parsedCode === accountCode
 		) {
 			console.log("matches nicely");
 			// Approval
