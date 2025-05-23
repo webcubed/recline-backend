@@ -1,7 +1,6 @@
 import process from "node:process";
 // eslint-disable-next-line sort-imports
 import * as Ably from "ably";
-import * as edgeConfig from "@vercel/edge-config";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
@@ -25,11 +24,20 @@ app.use((request, resource, next) => {
 	next();
 });
 const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
-
 async function getStorage() {
-	await edgeConfig.get("storage").then((storage) => {
-		return storage;
-	});
+	const options = {
+		method: "GET",
+		url: `https://edge-config.vercel.com/${process.env.EDGE_CONFIG_ID}/item/storage`,
+		params: { token: process.env.EDGE_CONFIG_TOKEN },
+	};
+
+	return axios
+		.request(options)
+		.then((response) => response.data)
+		.catch((error) => {
+			console.error(error);
+			return null;
+		});
 }
 
 async function editStorage(operation, key, value) {
@@ -108,7 +116,7 @@ app.post("/genCode", async (request, response) => {
 		.join("");
 	code = Buffer.from(code).toString("base64");
 
-	const storage = getStorage();
+	const storage = await getStorage();
 	storage.accounts[account] = {
 		name,
 		code,
@@ -119,8 +127,8 @@ app.post("/genCode", async (request, response) => {
 });
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = request.body;
-	const { name } = getStorage().accounts[account];
-	if (code !== getStorage().accounts[account].code) {
+	const { name } = await getStorage().accounts[account];
+	if (code !== await getStorage().accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
@@ -131,7 +139,7 @@ app.post("/sendMessage", async (request, response) => {
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code } = request.body;
 	// Verify code
-	if (code !== getStorage().accounts[account].code) {
+	if (code !== await getStorage().accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
@@ -142,7 +150,7 @@ app.post("/fetchMessages", async (request, response) => {
 app.post("/newMessage", async (request, response) => {
 	// If someone sends a message from discord
 	const { message, code, account } = request.body;
-	const { name } = getStorage().accounts[account];
+	const { name } = await getStorage().accounts[account];
 });
 app.get("/userToMail", async (request, response) => {
 	const { code, username } = request.body;
@@ -151,15 +159,15 @@ app.get("/userToMail", async (request, response) => {
 		return;
 	}
 
-	const account = Object.keys(getStorage().accounts).find(
-		(account) => getStorage().accounts[account].name === username
+	const account = Object.keys(await getStorage().accounts).find(
+		(account) => await getStorage().accounts[account].name === username
 	);
 	if (!account) {
 		response.status(404).send("Account not found");
 		return;
 	}
 
-	response.send({ account, code: getStorage().accounts[account].code });
+	response.send({ account, code: await getStorage().accounts[account].code });
 });
 async function fetchInbox() {
 	const xhr = new XMLHttpRequest();
@@ -188,7 +196,7 @@ async function fetchInbox() {
 
 app.post("/checkSession", async (request, response) => {
 	const { account, code } = request.body;
-	if (code === getStorage().accounts[account].code) {
+	if (code === await getStorage().accounts[account].code) {
 		response.send("authorized :>");
 	} else {
 		response.send("Invalid code");
@@ -247,7 +255,7 @@ app.post("/check", async (request, response) => {
 		if (
 			authorMail === account &&
 			parsedCode === code &&
-			parsedCode === getStorage().accounts[account]?.code
+			parsedCode === await getStorage().accounts[account]?.code
 		) {
 			console.log("matches nicely");
 			// Approval
