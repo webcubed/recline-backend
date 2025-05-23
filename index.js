@@ -25,10 +25,28 @@ app.use((request, resource, next) => {
 	next();
 });
 const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
-// Will not persist because vercel goofy
-const storage = {
-	accounts: {},
-};
+
+function getStorage() {
+	return JSON.parse(edgeConfig.get("storage"));
+}
+
+function editStorage(operation, key, value) {
+	// Operation can be "create", "update", "upsert", "delete"
+	// Key is the name
+	// Value is the value to be assigned to key
+	value = JSON.stringify(value);
+	axios.post(`https://api.vercel.com/v1/edge-config`, {
+		headers: {
+			Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`,
+			"Content-Type": "application/json",
+		},
+		body: {
+			operation,
+			key,
+			value,
+		},
+	});
+}
 
 function messageToBot(message) {
 	// Communication with bot via api webhook
@@ -88,16 +106,19 @@ app.post("/genCode", async (request, response) => {
 		.join("");
 	code = Buffer.from(code).toString("base64");
 
+	const storage = getStorage();
 	storage.accounts[account] = {
 		name,
 		code,
 	};
+	editStorage("update", "accounts", storage);
+
 	response.json({ code, account });
 });
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = request.body;
-	const { name } = storage.accounts[account];
-	if (code !== storage.accounts[account].code) {
+	const { name } = getStorage().accounts[account];
+	if (code !== getStorage().accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
@@ -108,7 +129,7 @@ app.post("/sendMessage", async (request, response) => {
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code } = request.body;
 	// Verify code
-	if (code !== storage.accounts[account].code) {
+	if (code !== getStorage().accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
@@ -119,7 +140,7 @@ app.post("/fetchMessages", async (request, response) => {
 app.post("/newMessage", async (request, response) => {
 	// If someone sends a message from discord
 	const { message, code, account } = request.body;
-	const { name } = storage.accounts[account];
+	const { name } = getStorage().accounts[account];
 });
 app.get("/userToMail", async (request, response) => {
 	const { code, username } = request.body;
@@ -128,15 +149,15 @@ app.get("/userToMail", async (request, response) => {
 		return;
 	}
 
-	const account = Object.keys(storage.accounts).find(
-		(account) => storage.accounts[account].name === username
+	const account = Object.keys(getStorage().accounts).find(
+		(account) => getStorage().accounts[account].name === username
 	);
 	if (!account) {
 		response.status(404).send("Account not found");
 		return;
 	}
 
-	response.send({ account, code: storage.accounts[account].code });
+	response.send({ account, code: getStorage().accounts[account].code });
 });
 async function fetchInbox() {
 	const xhr = new XMLHttpRequest();
@@ -165,7 +186,7 @@ async function fetchInbox() {
 
 app.post("/checkSession", async (request, response) => {
 	const { account, code } = request.body;
-	if (code === storage.accounts[account].code) {
+	if (code === getStorage().accounts[account].code) {
 		response.send("authorized :>");
 	} else {
 		response.send("Invalid code");
@@ -224,7 +245,7 @@ app.post("/check", async (request, response) => {
 		if (
 			authorMail === account &&
 			parsedCode === code &&
-			parsedCode === storage.accounts[account]?.code
+			parsedCode === getStorage().accounts[account]?.code
 		) {
 			console.log("matches nicely");
 			// Approval
