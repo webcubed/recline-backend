@@ -44,17 +44,26 @@ async function editStorage(operation, key, value) {
 	// Operation can be "create", "update", "upsert", "delete"
 	// Key is the name
 	// Value is the value to be assigned to key
-	//value = JSON.stringify(value);
-	await axios.post(`https://api.vercel.com/v1/edge-config`, {
+	// value = JSON.stringify(value);
+	const options = {
+		method: "PATCH",
+		url: `https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}/items`,
 		headers: {
 			Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`,
 			"Content-Type": "application/json",
 		},
-		body: {
-			operation,
-			key,
-			value,
+		data: {
+			items: [
+				{
+					operation,
+					key,
+					value,
+				},
+			],
 		},
+	};
+	await axios.request(options).catch((error) => {
+		console.error(error);
 	});
 }
 
@@ -121,14 +130,14 @@ app.post("/genCode", async (request, response) => {
 		name,
 		code,
 	};
-	editStorage("update", "accounts", storage);
+	editStorage("update", "storage", storage);
 
 	response.json({ code, account });
 });
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = request.body;
 	const { name } = await getStorage().accounts[account];
-	if (code !== await getStorage().accounts[account].code) {
+	if (code !== (await getStorage().accounts[account].code)) {
 		response.send("Invalid code");
 		return;
 	}
@@ -139,7 +148,7 @@ app.post("/sendMessage", async (request, response) => {
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code } = request.body;
 	// Verify code
-	if (code !== await getStorage().accounts[account].code) {
+	if (code !== (await getStorage().accounts[account].code)) {
 		response.send("Invalid code");
 		return;
 	}
@@ -160,7 +169,7 @@ app.get("/userToMail", async (request, response) => {
 	}
 
 	const account = Object.keys(await getStorage().accounts).find(
-		(account) => await getStorage().accounts[account].name === username
+		async (account) => (await getStorage().accounts[account].name) === username
 	);
 	if (!account) {
 		response.status(404).send("Account not found");
@@ -196,7 +205,7 @@ async function fetchInbox() {
 
 app.post("/checkSession", async (request, response) => {
 	const { account, code } = request.body;
-	if (code === await getStorage().accounts[account].code) {
+	if (code === (await getStorage().accounts[account].code)) {
 		response.send("authorized :>");
 	} else {
 		response.send("Invalid code");
@@ -255,7 +264,7 @@ app.post("/check", async (request, response) => {
 		if (
 			authorMail === account &&
 			parsedCode === code &&
-			parsedCode === await getStorage().accounts[account]?.code
+			parsedCode === (await getStorage().accounts[account]?.code)
 		) {
 			console.log("matches nicely");
 			// Approval
