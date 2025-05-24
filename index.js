@@ -144,6 +144,7 @@ app.post("/sendMessage", async (request, response) => {
 		response.send("Invalid code");
 		return;
 	}
+
 	// Do something cool with this eventually
 	// Use webhook
 	response.send("work in progress");
@@ -153,7 +154,6 @@ app.post("/haveMessages", async (request, response) => {
 	// Verify code
 	if (code !== structuredClone(process.env.SECRET_CODE)) {
 		response.send("Invalid code");
-		return;
 	}
 	// This is where you send them to the client via ably pub/sub
 });
@@ -205,7 +205,7 @@ async function fetchInbox() {
 	);
 	xhr.send();
 	return new Promise((resolve, reject) => {
-		xhr.addEventListener("readystatechange", function () {
+		xhr.addEventListener("readystatechange", () => {
 			if (xhr.readyState === 4) {
 				if (xhr.status === 200) {
 					resolve(xhr.responseText);
@@ -254,7 +254,9 @@ app.post("/check", async (request, response) => {
 		const summary = entry.summary[0];
 		const issued = entry.issued[0];
 
-		if (title !== 'Share request for "auth"') continue;
+		if (title !== 'Share request for "auth"') {
+			continue;
+		}
 
 		console.log(`Summary: ${summary}`);
 		console.log(`Issued: ${issued}`);

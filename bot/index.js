@@ -20,8 +20,10 @@ client.on("messageCreate", async (message) => {
 	if (
 		message.channelId !== process.env.CHANNEL_ID ||
 		message.channelId !== process.env.API_CHANNEL_ID
-	)
-		return; // Ignore other channels
+	) {
+		return;
+	} // Ignore other channels
+
 	// Read message, gather ID, send to client
 	if (message.channelId === process.env.CHANNEL_ID) {
 		console.log(
@@ -80,7 +82,10 @@ async function fetchMessages(continueId = null) {
 			limit: 50,
 			before: message.id,
 		});
-		for (const message_ of messagePage) messages.push(message_);
+		for (const message_ of messagePage) {
+			messages.push(message_);
+		}
+
 		if (messagePage.size > 0) {
 			message = messagePage.at(messagePage.size - 1);
 			lastMessageId = message.id;
