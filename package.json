@@ -34,9 +34,6 @@
 		"xo": "1.0.0"
 	},
 	"xo": {
-		"envs": [
-			"node"
-		],
 		"rules": {
 			"no-new": "off",
 			"no-undef": "off",

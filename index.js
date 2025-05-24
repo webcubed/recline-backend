@@ -5,7 +5,7 @@ import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
-import { XMLHttpRequest } from "xmlhttprequest"; // eslint-disable-line sort-imports
+import { XMLHttpRequest } from "xmlhttprequest";
 
 dotenv.config();
 const app = express();
