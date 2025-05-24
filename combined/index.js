@@ -1,17 +1,101 @@
 import Buffer from "node:buffer";
 import process from "node:process";
+import { structuredClone } from "node:util";
 // eslint-disable-next-line sort-imports
+import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
+import { Server } from "socket.io";
 // eslint-disable-next-line sort-imports
 import { XMLHttpRequest } from "xmlhttprequest";
+/* --------------------------- set up discord bot --------------------------- */
+const token = process.env.DISCORD_TOKEN;
+const client = new Client({
+	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+});
+client.once("ready", () => {
+	console.log("bot ready");
+});
+client.on("messageCreate", async (message) => {
+	// This is when a message gets sent from discord; discord -> client
+	if (
+		message.channelId !== process.env.CHANNEL_ID ||
+		message.channelId !== process.env.API_CHANNEL_ID
+	) {
+		return;
+	} // Ignore other channels
+
+	// Read message, gather ID, send to client
+	if (message.channelId === process.env.CHANNEL_ID) {
+		console.log(
+			`%cMessage from: %c${message.author.username} %cMessage: ${message.content}`,
+			"color: #8aadf4",
+			"color: #cad3f5",
+			"color: #c6a0f6"
+		);
+		axios.post(`${apiBaseUrl}/newMessage`, {
+			message,
+			code: process.env.SECRET_CODE,
+			account: mail,
+		});
+	} else if (message.channelId === process.env.API_CHANNEL_ID) {
+		// For messages between api and bot (api sends webhook, bot picks up message)
+		if (message.content === "fetch messages") {
+		}
+
+		if (message.content.includes("fetch messages from ")) {
+			const { continueId } = message.content.split("fetch messages from ")[1];
+			const { messages, newContinueId } = await fetchMessages(continueId);
+		}
+	}
+});
+
+client.login(token);
+/* -------------------------------- functions ------------------------------- */
+
+async function fetchMessages(continueId = null) {
+	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
+	const messages = [];
+
+	// Start fetching messages from the continueId if provided
+	let message = continueId
+		? await channel.messages.fetch(continueId)
+		: await channel.messages
+				.fetch({ limit: 1 })
+				.then((messagePage) =>
+					messagePage.size === 1 ? messagePage.at(0) : null
+				);
+
+	let hasMore = true;
+	let lastMessageId = null;
+	while (hasMore && message) {
+		// eslint-disable-next-line no-await-in-loop
+		const messagePage = await channel.messages.fetch({
+			limit: 50,
+			before: message.id,
+		});
+		for (const message_ of messagePage) {
+			messages.push(message_);
+		}
+
+		if (messagePage.size > 0) {
+			message = messagePage.at(messagePage.size - 1);
+			lastMessageId = message.id;
+		} else {
+			hasMore = false;
+		}
+	}
+
+	return { messages, continueId: lastMessageId };
+}
 
 /* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
 /* ----------------------------- express config ----------------------------- */
 const app = express();
+const io = new Server(server);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
@@ -73,29 +157,9 @@ async function editStorage(operation, key, value) {
 		console.error(error);
 	});
 }
-
-async function fetchMessagesFromBot(continueId = null) {
-	if (continueId) {
-		try {
-			const response = await axios.post(process.env.API_WEBHOOK, {
-				content: `fetch messages from ${continueId}`,
-			});
-			return response.data;
-		} catch (error) {
-			return console.error(error);
-		}
-	} else {
-		try {
-			const response = await axios.post(process.env.API_WEBHOOK, {
-				content: "fetch messages",
-			});
-			return response.data;
-		} catch (error) {
-			return console.error(error);
-		}
-	}
-}
-
+io.on("connection", (socket) => {
+	console.log("a user connected");
+});
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
@@ -147,14 +211,6 @@ app.post("/sendMessage", async (request, response) => {
 	// Use webhook
 	response.send("work in progress");
 });
-app.post("/haveMessages", async (request, response) => {
-	const { messages, code } = request.body;
-	// Verify code
-	if (code !== structuredClone(process.env.SECRET_CODE)) {
-		response.send("Invalid code");
-	}
-	// This is where you send them to the client via ably pub/sub
-});
 
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code, continueId } = request.body;
@@ -165,7 +221,7 @@ app.post("/fetchMessages", async (request, response) => {
 	}
 
 	// Fetch messages
-	response.send(fetchMessagesFromBot(continueId ?? null));
+	response.send(fetchMessages(continueId ?? null));
 });
 app.post("/newMessage", async (request, response) => {
 	// If someone sends a message from discord
