@@ -6,6 +6,7 @@ import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
 import { XMLHttpRequest } from "xmlhttprequest"; // eslint-disable-line sort-imports
+import { get } from "node:http";
 
 dotenv.config();
 const app = express();
@@ -29,6 +30,9 @@ async function getStorage() {
 		method: "GET",
 		url: `https://edge-config.vercel.com/${process.env.EDGE_CONFIG_ID}/item/storage`,
 		params: { token: process.env.EDGE_CONFIG_TOKEN },
+		headers: {
+			"Content-Type": "application/json",
+		},
 	};
 
 	return axios
@@ -148,7 +152,7 @@ app.post("/sendMessage", async (request, response) => {
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code } = request.body;
 	// Verify code
-	if (code !== (await getStorage().accounts[account].code)) {
+	if (code !== structuredClone(await getStorage()).accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
@@ -168,15 +172,16 @@ app.get("/userToMail", async (request, response) => {
 		return;
 	}
 
-	const account = Object.keys(await getStorage().accounts).find(
-		async (account) => (await getStorage().accounts[account].name) === username
+	const storage = structuredClone(await getStorage());
+	const account = Object.keys(storage.accounts).find(
+		async (account) => storage.accounts[account].name === username
 	);
 	if (!account) {
 		response.status(404).send("Account not found");
 		return;
 	}
 
-	response.send({ account, code: await getStorage().accounts[account].code });
+	response.send({ account, code: storage.accounts[account].code });
 });
 async function fetchInbox() {
 	const xhr = new XMLHttpRequest();
@@ -205,7 +210,9 @@ async function fetchInbox() {
 
 app.post("/checkSession", async (request, response) => {
 	const { account, code } = request.body;
-	if (code === (await getStorage().accounts[account].code)) {
+	const storageCode = structuredClone(await getStorage()).accounts[account]
+		.code;
+	if (code === storageCode) {
 		response.send("authorized :>");
 	} else {
 		response.send("Invalid code");
