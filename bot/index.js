@@ -17,7 +17,10 @@ client.once("ready", () => {
 });
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
-	if (message.channelId !== process.env.CHANNEL_ID || message.channelId !== process.env.API_CHANNEL_ID)
+	if (
+		message.channelId !== process.env.CHANNEL_ID ||
+		message.channelId !== process.env.API_CHANNEL_ID
+	)
 		return; // Ignore other channels
 	// Read message, gather ID, send to client
 	if (message.channelId === process.env.CHANNEL_ID) {
@@ -39,14 +42,16 @@ client.on("messageCreate", async (message) => {
 	} else if (message.channelId === process.env.API_CHANNEL_ID) {
 		// For messages between api and bot (api sends webhook, bot picks up message)
 		if (message.content === "fetch messages") {
-			const { continueId } = await fetchMessages();
-			return axios.post(`${apiBaseUrl}/fetchMessages`, { continueId });
+			return axios.post(`${apiBaseUrl}/haveMessages`, {
+				messages: await fetchMessages(),
+				code: process.env.SECRET_CODE,
+			});
 		}
 
 		if (message.content.includes("fetch messages from ")) {
 			const { continueId } = message.content.split("fetch messages from ")[1];
 			const { messages, newContinueId } = await fetchMessages(continueId);
-			axios.post(`${apiBaseUrl}/fetchMessages`, { messages, newContinueId });
+			axios.post(`${apiBaseUrl}/haveMessages`, { messages, newContinueId });
 		}
 	}
 });

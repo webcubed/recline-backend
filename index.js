@@ -148,6 +148,16 @@ app.post("/sendMessage", async (request, response) => {
 	// Use webhook
 	response.send("work in progress");
 });
+app.post("/haveMessages", async (request, response) => {
+	const { messages, code } = request.body;
+	// Verify code
+	if (code !== structuredClone(process.env.SECRET_CODE)) {
+		response.send("Invalid code");
+		return;
+	}
+	// This is where you send them to the client via ably.
+});
+
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code } = request.body;
 	// Verify code
