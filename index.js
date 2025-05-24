@@ -165,7 +165,7 @@ app.post("/newMessage", async (request, response) => {
 	const { message, code, account } = request.body;
 	const { name } = await getStorage().accounts[account];
 });
-app.get("/userToMail", async (request, response) => {
+app.post("/userToMail", async (request, response) => {
 	const { code, username } = request.body;
 	if (code !== process.env.SECRET_CODE) {
 		response.status(403).send("Invalid code");
