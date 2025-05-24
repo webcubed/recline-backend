@@ -17,7 +17,7 @@ client.once("ready", () => {
 });
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
-	if (message.author.bot || message.channelId !== process.env.CHANNEL_ID)
+	if (message.channelId !== process.env.CHANNEL_ID)
 		return; // Ignore bot messages/other channels
 	// Read message, gather ID, send to client
 	if (message.channelId === process.env.CHANNEL_ID) {
