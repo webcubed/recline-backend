@@ -1,3 +1,4 @@
+import Buffer from "node:buffer";
 import process from "node:process";
 // eslint-disable-next-line sort-imports
 import * as Ably from "ably";
@@ -5,6 +6,7 @@ import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
+// eslint-disable-next-line sort-imports
 import { XMLHttpRequest } from "xmlhttprequest";
 
 /* ------------------------------ dotenv config ----------------------------- */
@@ -167,7 +169,7 @@ app.post("/fetchMessages", async (request, response) => {
 	}
 
 	// Fetch messages
-	response.send(fetchMessagesFromBot(continueId ? continueId : null));
+	response.send(fetchMessagesFromBot(continueId ?? null));
 });
 app.post("/newMessage", async (request, response) => {
 	// If someone sends a message from discord
