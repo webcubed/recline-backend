@@ -248,8 +248,8 @@ packages:
     peerDependencies:
       eslint: '>=8.40.0'
 
-  '@stylistic/eslint-plugin@4.2.0':
-    resolution: {integrity: sha512-8hXezgz7jexGHdo5WN6JBEIPHCSFyyU4vgbxevu4YLVS5vl+sxqAAGyXSzfNDyR6xMNSH5H1x67nsXcYMOHtZA==}
+  '@stylistic/eslint-plugin@4.4.0':
+    resolution: {integrity: sha512-bIh/d9X+OQLCAMdhHtps+frvyjvAM4B1YlSJzcEEhl7wXLIqPar3ngn9DrHhkBOrTA/z9J0bUMtctAspe0dxdQ==}
     engines: {node: ^18.18.0 || ^20.9.0 || >=21.1.0}
     peerDependencies:
       eslint: '>=9.0.0'
@@ -2152,7 +2152,7 @@ snapshots:
       - supports-color
       - typescript
 
-  '@stylistic/eslint-plugin@4.2.0(eslint@9.27.0)(typescript@5.8.3)':
+  '@stylistic/eslint-plugin@4.4.0(eslint@9.27.0)(typescript@5.8.3)':
     dependencies:
       '@typescript-eslint/utils': 8.32.1(eslint@9.27.0)(typescript@5.8.3)
       eslint: 9.27.0
@@ -4018,7 +4018,7 @@ snapshots:
     dependencies:
       '@eslint-community/eslint-plugin-eslint-comments': 4.5.0(eslint@9.27.0)
       '@sindresorhus/tsconfig': 7.0.0
-      '@stylistic/eslint-plugin': 4.2.0(eslint@9.27.0)(typescript@5.8.3)
+      '@stylistic/eslint-plugin': 4.4.0(eslint@9.27.0)(typescript@5.8.3)
       '@typescript-eslint/parser': 8.32.1(eslint@9.27.0)(typescript@5.8.3)
       arrify: 3.0.0
       cosmiconfig: 9.0.0(typescript@5.8.3)
