@@ -6,7 +6,6 @@ import dotenv from "dotenv";
 import express from "express";
 import { parseString } from "xml2js";
 import { XMLHttpRequest } from "xmlhttprequest"; // eslint-disable-line sort-imports
-import { get } from "node:http";
 
 dotenv.config();
 const app = express();
