@@ -7,7 +7,9 @@ import express from "express";
 import { parseString } from "xml2js";
 import { XMLHttpRequest } from "xmlhttprequest";
 
+/* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
+/* ----------------------------- express config ----------------------------- */
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -23,7 +25,11 @@ app.use((request, resource, next) => {
 	);
 	next();
 });
+/* -------------------------------- variables ------------------------------- */
 const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
+const ablyChannel = new Ably.Realtime({
+	key: process.env.ABLY_API_KEY,
+});
 async function getStorage() {
 	const options = {
 		method: "GET",
@@ -68,12 +74,6 @@ async function editStorage(operation, key, value) {
 	await axios.request(options).catch((error) => {
 		console.error(error);
 	});
-}
-
-function messageToBot(message) {
-	// Communication with bot via api webhook
-	// For ex. setting changes on client go thru here then to bot?
-	axios.post(process.env.API_WEBHOOK, message);
 }
 
 async function fetchMessagesFromBot(continueId = null) {
@@ -155,11 +155,11 @@ app.post("/haveMessages", async (request, response) => {
 		response.send("Invalid code");
 		return;
 	}
-	// This is where you send them to the client via ably.
+	// This is where you send them to the client via ably pub/sub
 });
 
 app.post("/fetchMessages", async (request, response) => {
-	const { account, code } = request.body;
+	const { account, code, continueId } = request.body;
 	// Verify code
 	if (code !== structuredClone(await getStorage()).accounts[account].code) {
 		response.send("Invalid code");
@@ -167,7 +167,7 @@ app.post("/fetchMessages", async (request, response) => {
 	}
 
 	// Fetch messages
-	response.send(fetchMessagesFromBot());
+	response.send(fetchMessagesFromBot(continueId ? continueId : null));
 });
 app.post("/newMessage", async (request, response) => {
 	// If someone sends a message from discord

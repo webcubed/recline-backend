@@ -22,7 +22,6 @@
 		"discord.js": "^14.19.3",
 		"dotenv": "^16.5.0",
 		"express": "^5.1.0",
-		"prettier": "^3.5.3",
 		"recline-backend": "file:",
 		"vercel": "^42.1.1",
 		"xml2js": "^0.6.2",
@@ -31,14 +30,8 @@
 	"devDependencies": {
 		"@trivago/prettier-plugin-sort-imports": "^5.2.2",
 		"globals": "16.1.0",
-		"xo": "1.0.0"
-	},
-	"xo": {
-		"rules": {
-			"no-new": "off",
-			"no-undef": "off",
-			"radix": "off",
-			"sort-imports": "error"
-		}
+		"xo": "1.0.0",
+		"eslint-config-xo": "^0.47.0",
+		"prettier": "^3.5.3"
 	}
 }

@@ -1,7 +1,7 @@
-import xo from "eslint-config-xo";
-
-export default [
+const config = [
 	{
+		semicolon: true,
+		space: false,
 		rules: {
 			"no-new": "off",
 			"no-undef": "off",
@@ -9,6 +9,5 @@ export default [
 			"sort-imports": "error",
 		},
 	},
-
-	...xo,
 ];
+export default config;
