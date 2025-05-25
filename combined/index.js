@@ -66,6 +66,7 @@ async function fetchMessages(continueId = null) {
 			})();
 	let hasMore = true;
 	let lastMessageId = null;
+	rawMessages.push(message);
 	while (hasMore && message) {
 		// eslint-disable-next-line no-await-in-loop
 		const messagePage = await channel.messages.fetch({
