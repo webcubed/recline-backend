@@ -243,6 +243,7 @@ app.post("/fetchMessages", async (request, response) => {
 	}
 
 	// Fetch messages
+	console.log(account, code, continueId);
 	response.send(fetchMessages(continueId ?? null));
 });
 app.get("/healthcheck", (request, response) => {
