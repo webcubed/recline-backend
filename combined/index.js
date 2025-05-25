@@ -80,7 +80,6 @@ async function fetchMessages(continueId = null) {
 		}
 	}
 
-	console.log(JSON.stringify(messages), lastMessageId);
 	return { messages, continueId: lastMessageId };
 }
 
@@ -246,7 +245,9 @@ app.post("/fetchMessages", async (request, response) => {
 	// Fetch messages
 	response.send(fetchMessages(continueId ?? null));
 });
-
+app.get("/healthcheck", (request, response) => {
+	response.send("im alive");
+});
 async function userToMail(username) {
 	const storage = structuredClone(await getStorage());
 	const account = Object.keys(storage.accounts).find(
