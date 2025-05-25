@@ -39,15 +39,6 @@ client.on("messageCreate", async (message) => {
 			code: process.env.SECRET_CODE,
 			account: mail,
 		});
-	} else if (message.channelId === process.env.API_CHANNEL_ID) {
-		// For messages between api and bot (api sends webhook, bot picks up message)
-		if (message.content === "fetch messages") {
-		}
-
-		if (message.content.includes("fetch messages from ")) {
-			const { continueId } = message.content.split("fetch messages from ")[1];
-			const { messages, newContinueId } = await fetchMessages(continueId);
-		}
 	}
 });
 
