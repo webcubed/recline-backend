@@ -6,10 +6,11 @@ import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
-import { parseString } from "xml2js";
-import { Server } from "socket.io";
 // eslint-disable-next-line sort-imports
+import { Server } from "socket.io";
 import { XMLHttpRequest } from "xmlhttprequest";
+import { parseString } from "xml2js";
+
 /* --------------------------- set up discord bot --------------------------- */
 const token = process.env.DISCORD_TOKEN;
 const client = new Client({
@@ -79,6 +80,7 @@ async function fetchMessages(continueId = null) {
 		}
 	}
 
+	console.log(JSON.stringify(messages), lastMessageId);
 	return { messages, continueId: lastMessageId };
 }
 
@@ -114,13 +116,12 @@ async function getStorage() {
 		},
 	};
 
-	return axios
-		.request(options)
-		.then((response) => response.data)
-		.catch((error) => {
-			console.error(error);
-			return null;
-		});
+	try {
+		const response = await axios.request(options);
+		return response.data;
+	} catch (error) {
+		return error;
+	}
 }
 
 async function editStorage(operation, key, value) {
@@ -145,13 +146,17 @@ async function editStorage(operation, key, value) {
 			],
 		},
 	};
-	await axios.request(options).catch((error) => {
+	try {
+		await axios.request(options);
+	} catch (error) {
 		console.error(error);
-	});
+	}
 }
+
 io.on("connection", (socket) => {
 	console.log("a user connected");
 });
+
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
@@ -191,6 +196,29 @@ app.post("/genCode", async (request, response) => {
 
 	response.json({ code, account });
 });
+async function messageToDiscord(username, message) {
+	// Send message to recline channel using webhook for storage
+	const webhookUrl = process.env.CHAT_WEBHOOK;
+	const data = {
+		content: message,
+		username,
+	};
+	const options = {
+		method: "POST",
+		url: webhookUrl,
+		headers: {
+			"Content-Type": "application/json",
+		},
+		data: JSON.stringify(data),
+	};
+	try {
+		const response = await axios.request(options);
+		return response.data;
+	} catch (error) {
+		return error;
+	}
+}
+
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = request.body;
 	const { name } = await getStorage().accounts[account];
@@ -199,11 +227,14 @@ app.post("/sendMessage", async (request, response) => {
 		return;
 	}
 
-	// Do something cool with this eventually
-	// Use webhook
-	response.send("work in progress");
+	try {
+		await messageToDiscord(name, message);
+		response.send("Message sent");
+	} catch (error) {
+		console.error(error);
+		response.status(500).send("Error sending message");
+	}
 });
-
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code, continueId } = request.body;
 	// Verify code
@@ -215,11 +246,7 @@ app.post("/fetchMessages", async (request, response) => {
 	// Fetch messages
 	response.send(fetchMessages(continueId ?? null));
 });
-app.post("/newMessage", async (request, response) => {
-	// If someone sends a message from discord
-	const { message, code, account } = request.body;
-	const { name } = await getStorage().accounts[account];
-});
+
 app.post("/userToMail", async (request, response) => {
 	const { code, username } = request.body;
 	if (code !== process.env.SECRET_CODE) {
@@ -264,6 +291,8 @@ async function fetchInbox() {
 }
 
 app.post("/checkSession", async (request, response) => {
+	// Warning: there is a loophole currently allowing user to set code in localstorage to skip mail check
+	// The mail check ensures only one client at a time can have access
 	const { account, code } = request.body;
 	const storageCode = structuredClone(await getStorage()).accounts[account]
 		.code;

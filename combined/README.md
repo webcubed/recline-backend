@@ -27,7 +27,7 @@ Api -> bot via webhook
 Bot -> Api via endpoint
 chat/realtime functions using ably
 
-- [ ] Create Webhook for each user on bot server WILL be done manually
+- [ ] USE 1 webhook, as we can change the username in the request and recieve it from the bot.
 - [ ] Send message via webhook on api server
 - [ ] Fetch message via bot on bot server -> api server thru post request
 - [ ] Message creation on client on api server -> bot server
