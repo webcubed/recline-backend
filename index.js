@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import process from "node:process";
 // eslint-disable-next-line sort-imports
 import axios from "axios";
