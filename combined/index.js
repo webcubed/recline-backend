@@ -1,4 +1,3 @@
-import Buffer from "node:buffer";
 import { createServer } from "node:http";
 import process from "node:process";
 // eslint-disable-next-line sort-imports
