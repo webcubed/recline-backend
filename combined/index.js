@@ -11,6 +11,8 @@ import { Server } from "socket.io";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
 
+/* ------------------------------ dotenv config ----------------------------- */
+dotenv.config();
 /* --------------------------- set up discord bot --------------------------- */
 const token = process.env.DISCORD_TOKEN;
 const client = new Client({
@@ -18,6 +20,9 @@ const client = new Client({
 });
 client.once("ready", () => {
 	console.log("bot ready");
+	(async () => {
+		console.log(await fetchMessages());
+	})();
 });
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
@@ -49,27 +54,27 @@ client.login(token);
 
 async function fetchMessages(continueId = null) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
-	const messages = [];
+	const rawMessages = [];
 
 	// Start fetching messages from the continueId if provided
 	let message = continueId
 		? await channel.messages.fetch(continueId)
 		: await channel.messages
-				.fetch({ limit: 1 })
+				.fetch({ limit: 1, cache: false })
 				.then((messagePage) =>
 					messagePage.size === 1 ? messagePage.at(0) : null
 				);
-
 	let hasMore = true;
 	let lastMessageId = null;
 	while (hasMore && message) {
 		// eslint-disable-next-line no-await-in-loop
 		const messagePage = await channel.messages.fetch({
 			limit: 50,
+			cache: false,
 			before: message.id,
 		});
 		for (const message_ of messagePage) {
-			messages.push(message_);
+			rawMessages.push(message_);
 		}
 
 		if (messagePage.size > 0) {
@@ -79,12 +84,30 @@ async function fetchMessages(continueId = null) {
 			hasMore = false;
 		}
 	}
+	/* --------------------------------- parsing -------------------------------- */
+	// In the messages array, each item will be another array.
+	// In this 2nd array, the first item will be the message Id,
+	// And the second item will be the message information
+	// Including the timestamp, which we will use to sort these messages in order and
+	// Potentially append a date to the message
+	// We'll also get the content in the value "content" or "cleanContent"
+	// Cleancontent has mentions with display names instead of ids
 
+	// Create our own messages array
+	const unSortedMessages = rawMessages.map((message) => {
+		return {
+			timestamp: message.createdTimestamp,
+			content: message.content,
+			cleanContent: message.cleanContent,
+			author: message.author.displayName,
+		};
+	});
+	// Sort based on timestamp
+	const messages = unSortedMessages.sort((a, b) => {
+		return a.timestamp - b.timestamp;
+	});
 	return { messages, continueId: lastMessageId };
 }
-
-/* ------------------------------ dotenv config ----------------------------- */
-dotenv.config();
 /* ----------------------------- express config ----------------------------- */
 const app = express();
 const server = createServer(app);
@@ -244,7 +267,6 @@ app.post("/fetchMessages", async (request, response) => {
 
 	// Fetch messages
 	const messages = await fetchMessages(continueId ?? null);
-	console.log(messages);
 	response.send(messages);
 });
 app.get("/healthcheck", (request, response) => {
