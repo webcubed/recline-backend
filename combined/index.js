@@ -243,7 +243,9 @@ app.post("/fetchMessages", async (request, response) => {
 	}
 
 	// Fetch messages
-	response.send(JSON.parse(fetchMessages(continueId ?? null)));
+	const messages = fetchMessages(continueId ?? null);
+	console.log(messages);
+	response.send(messages);
 });
 app.get("/healthcheck", (request, response) => {
 	response.send("im alive");
