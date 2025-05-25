@@ -1,6 +1,5 @@
 import Buffer from "node:buffer";
 import process from "node:process";
-import { structuredClone } from "node:util";
 // eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
