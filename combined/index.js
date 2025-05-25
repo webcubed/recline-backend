@@ -91,12 +91,13 @@ async function fetchMessages(continueId = null) {
 	// Cleancontent has mentions with display names instead of ids
 
 	// Create our own messages array
-	const unSortedMessages = rawMessages.map((message) => {
+	const unSortedMessages = rawMessages.map((rawData) => {
+		const message = rawData[1];
 		return {
 			timestamp: message.createdTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
-			author: message.author.displayName,
+			author: message.author.username,
 		};
 	});
 	// Sort based on timestamp
