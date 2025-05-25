@@ -243,7 +243,7 @@ app.post("/fetchMessages", async (request, response) => {
 	}
 
 	// Fetch messages
-	const messages = fetchMessages(continueId ?? null);
+	const messages = await fetchMessages(continueId ?? null);
 	console.log(messages);
 	response.send(messages);
 });
