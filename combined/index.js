@@ -247,24 +247,18 @@ app.post("/fetchMessages", async (request, response) => {
 	response.send(fetchMessages(continueId ?? null));
 });
 
-app.post("/userToMail", async (request, response) => {
-	const { code, username } = request.body;
-	if (code !== process.env.SECRET_CODE) {
-		response.status(403).send("Invalid code");
-		return;
-	}
-
+async function userToMail(username) {
 	const storage = structuredClone(await getStorage());
 	const account = Object.keys(storage.accounts).find(
 		async (account) => storage.accounts[account].name === username
 	);
 	if (!account) {
-		response.status(404).send("Account not found");
-		return;
+		return "Account not found";
 	}
 
-	response.send({ account, code: storage.accounts[account].code });
-});
+	return account;
+}
+
 async function fetchInbox() {
 	const xhr = new XMLHttpRequest();
 	xhr.withCredentials = true;
