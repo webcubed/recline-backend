@@ -57,7 +57,7 @@ async function fetchMessages(continueId = null) {
 	let message = continueId
 		? await channel.messages.fetch(continueId)
 		: await channel.messages
-				.fetch({ limit: 1, cache: false })
+				.fetch({ limit: 1, force: true })
 				.then((messagePage) =>
 					messagePage.size === 1 ? messagePage.at(0) : null
 				);
@@ -67,7 +67,7 @@ async function fetchMessages(continueId = null) {
 		// eslint-disable-next-line no-await-in-loop
 		const messagePage = await channel.messages.fetch({
 			limit: 50,
-			cache: false,
+			force: true,
 			before: message.id,
 		});
 		for (const message_ of messagePage) {
