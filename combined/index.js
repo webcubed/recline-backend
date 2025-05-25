@@ -1,3 +1,4 @@
+/* eslint-disable @stylistic/indent */
 import { Buffer } from "node:buffer";
 import { createServer } from "node:http";
 import process from "node:process";
@@ -56,11 +57,13 @@ async function fetchMessages(continueId = null) {
 	// Start fetching messages from the continueId if provided
 	let message = continueId
 		? await channel.messages.fetch(continueId)
-		: await channel.messages
-				.fetch({ limit: 1, force: true })
-				.then((messagePage) =>
-					messagePage.size === 1 ? messagePage.at(0) : null
-				);
+		: (async () => {
+				const messagePage = await channel.messages.fetch({
+					limit: 1,
+					force: true,
+				});
+				return messagePage.size === 1 ? messagePage.at(0) : null;
+			})();
 	let hasMore = true;
 	let lastMessageId = null;
 	while (hasMore && message) {
@@ -107,6 +110,7 @@ async function fetchMessages(continueId = null) {
 	return { messages, continueId: lastMessageId };
 }
 /* ----------------------------- express config ----------------------------- */
+
 const app = express();
 const server = createServer(app);
 const io = new Server(server);
