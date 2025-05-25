@@ -1,4 +1,5 @@
 import Buffer from "node:buffer";
+import { createServer } from "node:http";
 import process from "node:process";
 // eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
@@ -85,6 +86,7 @@ async function fetchMessages(continueId = null) {
 dotenv.config();
 /* ----------------------------- express config ----------------------------- */
 const app = express();
+const server = createServer(app);
 const io = new Server(server);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
