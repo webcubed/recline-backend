@@ -20,9 +20,6 @@ const client = new Client({
 });
 client.once("ready", () => {
 	console.log("bot ready");
-	(async () => {
-		console.log(await fetchMessages());
-	})();
 });
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
