@@ -96,7 +96,7 @@ async function fetchMessages(continueId = null) {
 	const unSortedMessages = rawMessages.map((rawData) => {
 		const message = rawData[1];
 		return {
-			timestamp: message.createdTimestamp,
+			timestamp: message.timestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
 			author: message.author.username,
@@ -104,7 +104,9 @@ async function fetchMessages(continueId = null) {
 	});
 	// Sort based on timestamp
 	const messages = unSortedMessages.sort((a, b) => {
-		return a.timestamp - b.timestamp;
+		const dateA = new Date(a.timestamp);
+		const dateB = new Date(b.timestamp);
+		return dateA.getTime() - dateB.getTime();
 	});
 	return { messages, continueId: lastMessageId };
 }
@@ -258,6 +260,7 @@ app.post("/sendMessage", async (request, response) => {
 		response.status(500).send("Error sending message");
 	}
 });
+
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code, continueId } = request.body;
 	// Verify code
