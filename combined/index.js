@@ -21,9 +21,6 @@ const client = new Client({
 });
 client.once("ready", () => {
 	console.log("bot ready");
-	(async () => {
-		console.log(await fetchMessages());
-	})();
 });
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
@@ -250,7 +247,7 @@ async function messageToDiscord(username, message) {
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = request.body;
 	const { name } = await getStorage().accounts[account];
-	if (code !== (await getStorage().accounts[account].code)) {
+	if (code !== structuredClone(await getStorage().accounts[account].code)) {
 		response.send("Invalid code");
 		return;
 	}
