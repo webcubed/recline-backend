@@ -17,7 +17,11 @@ dotenv.config();
 /* --------------------------- set up discord bot --------------------------- */
 const token = process.env.DISCORD_TOKEN;
 const client = new Client({
-	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+	intents: [
+		GatewayIntentBits.Guilds,
+		GatewayIntentBits.GuildMessages,
+		GatewayIntentBits.MessageContent,
+	],
 });
 client.once("ready", () => {
 	console.log("bot ready");
@@ -39,10 +43,11 @@ client.on("messageCreate", async (message) => {
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-		axios.post(`${apiBaseUrl}/newMessage`, {
-			message,
-			code: process.env.SECRET_CODE,
-			account: mail,
+		io.emit("message", {
+			timestamp: message.createdTimestamp,
+			content: message.content,
+			cleanContent: message.cleanContent,
+			author: message.author.username,
 		});
 	}
 });
@@ -178,7 +183,7 @@ async function editStorage(operation, key, value) {
 	}
 }
 
-io.on("connection", (socket) => {
+io.on("connection", () => {
 	console.log("a user connected");
 });
 
