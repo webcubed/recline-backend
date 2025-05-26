@@ -246,8 +246,8 @@ async function messageToDiscord(username, message) {
 
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = request.body;
-	const { name } = await getStorage().accounts[account];
-	if (code !== structuredClone(await getStorage().accounts[account].code)) {
+	const { name } = strurcturedClone(await getStorage()).accounts[account];
+	if (code !== structuredClone(await getStorage()).accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
