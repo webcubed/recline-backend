@@ -21,6 +21,9 @@ const client = new Client({
 });
 client.once("ready", () => {
 	console.log("bot ready");
+	(async () => {
+		console.log(await fetchMessages());
+	})();
 });
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
@@ -94,9 +97,9 @@ async function fetchMessages(continueId = null) {
 
 	// Create our own messages array
 	const unSortedMessages = rawMessages.map((rawData) => {
-		const message = rawData[1];
+		const message = Array.isArray(rawData) ? rawData[1] : rawData;
 		return {
-			timestamp: message.timestamp,
+			timestamp: message?.createdTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
 			author: message.author.username,
