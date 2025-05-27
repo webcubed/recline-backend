@@ -291,12 +291,13 @@ async function messageToDiscord(username, message) {
 app.post("/sendMessage", async (request, response) => {
 	const { account, code, message } = request.body;
 	const { name } = structuredClone(await getStorage()).accounts[account];
-	if (code !== structuredClone(await getStorage()).accounts[account].code) {
+	const storage = structuredClone(await getStorage());
+	if (code !== storage.accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
 
-	if (structuredClone(await getStorage()).accounts[account].secure !== true) {
+	if (storage.accounts[account].secure !== true) {
 		response.send("Not authorized");
 		return;
 	}
@@ -312,13 +313,14 @@ app.post("/sendMessage", async (request, response) => {
 
 app.post("/fetchMessages", async (request, response) => {
 	const { account, code, continueId } = request.body;
+	const storage = structuredClone(await getStorage());
 	// Verify code
-	if (code !== structuredClone(await getStorage()).accounts[account].code) {
+	if (code !== storage.accounts[account].code) {
 		response.send("Invalid code");
 		return;
 	}
 
-	if (structuredClone(await getStorage()).accounts[account].secure !== true) {
+	if (storage.accounts[account].secure !== true) {
 		response.send("Not authorized");
 		return;
 	}
@@ -379,8 +381,7 @@ async function fetchInbox() {
 
 app.post("/checkSession", async (request, response) => {
 	const { account, code } = request.body;
-	const accountStorage = structuredClone(await getStorage()).accounts[account]
-		.code;
+	const accountStorage = structuredClone(await getStorage()).accounts[account];
 	if (code === accountStorage.code) {
 		if (accountStorage.secure === true) {
 			response.send("authorized :>");
