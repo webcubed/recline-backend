@@ -44,7 +44,7 @@ client.on("messageCreate", async (message) => {
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-		io.emit("message", {
+		wsServer.emit("message", {
 			timestamp: message.createdTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
