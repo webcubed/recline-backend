@@ -41,14 +41,12 @@ client.on("messageCreate", async (message) => {
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-		const newmsg = message.map((rawData) => {
-			return {
-				timestamp: rawData.createdTimestamp,
-				content: rawData.content,
-				cleanContent: rawData.cleanContent,
-				author: rawData.author.userername,
-			};
-		});
+		const newmsg = {
+			timestamp: message.createdTimestamp,
+			content: message.content,
+			cleanContent: message.cleanContent,
+			author: message.author.username,
+		};
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
 				client.send(JSON.stringify(newmsg));
