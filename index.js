@@ -118,6 +118,7 @@ app.post("/genCode", async (request, response) => {
 	storage.accounts[account] = {
 		name,
 		code,
+		secure: false,
 	};
 	editStorage("update", "storage", storage);
 
@@ -167,10 +168,12 @@ async function fetchInbox() {
 
 app.post("/checkSession", async (request, response) => {
 	const { account, code } = request.body;
-	const storageCode = structuredClone(await getStorage()).accounts[account]
+	const accountStorage = structuredClone(await getStorage()).accounts[account]
 		.code;
-	if (code === storageCode) {
-		response.send("authorized :>");
+	if (code === accountStorage.code) {
+		if (accountStorage.secure === true) {
+			response.send("authorized :>");
+		}
 	} else {
 		response.send("Invalid code");
 	}
@@ -237,6 +240,8 @@ app.post("/check", async (request, response) => {
 		) {
 			console.log("matches nicely");
 			// Approval
+			// Set the value "secure" to true in storage
+			approveUser(account);
 			response.send("authorized :>");
 			// This should only be used to load the dashboard.
 			// Subsequent requests should also cross check the code.
@@ -244,6 +249,14 @@ app.post("/check", async (request, response) => {
 		}
 	}
 });
+async function approveUser(account) {
+	const storage = await getStorage();
+	storage.accounts[account] = {
+		...storage.accounts[account],
+		secure: true,
+	};
+	editStorage("update", "storage", storage);
+}
 
 app.listen(3000, () => {
 	console.log("app listening on port 3000");

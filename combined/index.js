@@ -103,6 +103,14 @@ async function fetchMessages(continueId = null) {
 	// Create our own messages array
 	const unSortedMessages = rawMessages.map((rawData) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
+		// Sanitize cleanContent & content
+		message.cleanContent &&= message.cleanContent.replaceAll(
+			/<@(\d+)>/g,
+			"@$1"
+		);
+
+		message.content &&= message.content.replaceAll(/<@(\d+)>/g, "@$1");
+
 		return {
 			timestamp: message?.createdTimestamp,
 			content: message.content,
@@ -251,6 +259,7 @@ app.post("/genCode", async (request, response) => {
 	storage.accounts[account] = {
 		name,
 		code,
+		secure: false,
 	};
 	editStorage("update", "storage", storage);
 
@@ -287,6 +296,11 @@ app.post("/sendMessage", async (request, response) => {
 		return;
 	}
 
+	if (structuredClone(await getStorage()).accounts[account].secure !== true) {
+		response.send("Not authorized");
+		return;
+	}
+
 	try {
 		await messageToDiscord(name, message);
 		response.send("Message sent");
@@ -304,6 +318,11 @@ app.post("/fetchMessages", async (request, response) => {
 		return;
 	}
 
+	if (structuredClone(await getStorage()).accounts[account].secure !== true) {
+		response.send("Not authorized");
+		return;
+	}
+
 	// Fetch messages
 	const messages = await fetchMessages(continueId ?? null);
 	response.send(messages);
@@ -316,6 +335,11 @@ app.post("/mailToUser", async (request, response) => {
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		response.status(403).send("Invalid code");
+		return;
+	}
+
+	if (structuredClone(await getStorage()).accounts[account].secure !== true) {
+		response.send("Not authorized");
 		return;
 	}
 
@@ -354,13 +378,13 @@ async function fetchInbox() {
 }
 
 app.post("/checkSession", async (request, response) => {
-	// Warning: there is a loophole currently allowing user to set code in localstorage to skip mail check
-	// The mail check ensures only one client at a time can have access
 	const { account, code } = request.body;
-	const storageCode = structuredClone(await getStorage()).accounts[account]
+	const accountStorage = structuredClone(await getStorage()).accounts[account]
 		.code;
-	if (code === storageCode) {
-		response.send("authorized :>");
+	if (code === accountStorage.code) {
+		if (accountStorage.secure === true) {
+			response.send("authorized :>");
+		}
 	} else {
 		response.send("Invalid code");
 	}
