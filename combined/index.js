@@ -47,6 +47,7 @@ client.on("messageCreate", async (message) => {
 			cleanContent: message.cleanContent,
 			author: message.author.userername,
 		};
+		console.log(message);
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
 				client.send(JSON.stringify(newmsg));
