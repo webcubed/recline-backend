@@ -172,23 +172,22 @@ app.post("/newMessage", async (request, response) => {
 	const { message, code, account } = request.body;
 	const { name } = await getStorage().accounts[account];
 });
-app.post("/userToMail", async (request, response) => {
-	const { code, username } = request.body;
-	if (code !== process.env.SECRET_CODE) {
+
+app.post("/mailToUser", async (request, response) => {
+	const { code, account } = request.body;
+	const storage = structuredClone(await getStorage());
+	if (code !== storage.accounts[account].code) {
 		response.status(403).send("Invalid code");
 		return;
 	}
 
-	const storage = structuredClone(await getStorage());
-	const account = Object.keys(storage.accounts).find(
-		async (account) => storage.accounts[account].name === username
-	);
-	if (!account) {
-		response.status(404).send("Account not found");
+	const user = Object.keys(storage.accounts).find((user) => user === account);
+	if (!user) {
+		response.status(404).send("User not found");
 		return;
 	}
 
-	response.send({ account, code: storage.accounts[account].code });
+	response.send({ username: storage.accounts[user].name });
 });
 async function fetchInbox() {
 	const xhr = new XMLHttpRequest();
