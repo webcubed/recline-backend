@@ -30,11 +30,11 @@ client.once("ready", () => {
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
 	if (
-		message.channelId !== process.env.CHANNEL_ID ||
+		message.channelId !== process.env.CHANNEL_ID &&
 		message.channelId !== process.env.API_CHANNEL_ID
 	) {
 		return;
-	} // Ignore other channels
+	}
 
 	// Read message, gather ID, send to client
 	if (message.channelId === process.env.CHANNEL_ID) {
