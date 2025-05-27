@@ -74,28 +74,16 @@ async function editStorage(operation, key, value) {
 	});
 }
 
-async function fetchMessagesFromBot(continueId = null) {
-	if (continueId) {
-		try {
-			const response = await axios.post(process.env.API_WEBHOOK, {
-				content: `fetch messages from ${continueId}`,
-			});
-			return response.data;
-		} catch (error) {
-			return console.error(error);
-		}
-	} else {
-		try {
-			const response = await axios.post(process.env.API_WEBHOOK, {
-				content: "fetch messages",
-			});
-			return response.data;
-		} catch (error) {
-			return console.error(error);
-		}
-	}
-}
+app.get("/mappings", async (request, response) => {
+	const storage = structuredClone(await getStorage());
 
+	const mappings = Object.entries(storage.accounts).map(([account, data]) => ({
+		account,
+		name: data.name,
+	}));
+
+	response.json(mappings);
+});
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
@@ -134,43 +122,6 @@ app.post("/genCode", async (request, response) => {
 	editStorage("update", "storage", storage);
 
 	response.json({ code, account });
-});
-app.post("/sendMessage", async (request, response) => {
-	const { account, code, message } = request.body;
-	const { name } = await getStorage().accounts[account];
-	if (code !== (await getStorage().accounts[account].code)) {
-		response.send("Invalid code");
-		return;
-	}
-
-	// Do something cool with this eventually
-	// Use webhook
-	response.send("work in progress");
-});
-app.post("/haveMessages", async (request, response) => {
-	const { messages, code } = request.body;
-	// Verify code
-	if (code !== structuredClone(process.env.SECRET_CODE)) {
-		response.send("Invalid code");
-	}
-	// This is where you send them to the client via ably pub/sub
-});
-
-app.post("/fetchMessages", async (request, response) => {
-	const { account, code, continueId } = request.body;
-	// Verify code
-	if (code !== structuredClone(await getStorage()).accounts[account].code) {
-		response.send("Invalid code");
-		return;
-	}
-
-	// Fetch messages
-	response.send(fetchMessagesFromBot(continueId ?? null));
-});
-app.post("/newMessage", async (request, response) => {
-	// If someone sends a message from discord
-	const { message, code, account } = request.body;
-	const { name } = await getStorage().accounts[account];
 });
 
 app.post("/mailToUser", async (request, response) => {
