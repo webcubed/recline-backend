@@ -35,6 +35,9 @@ importers:
       vercel:
         specifier: ^42.1.1
         version: 42.1.1
+      ws:
+        specifier: ^8.18.2
+        version: 8.18.2
       xml2js:
         specifier: ^0.6.2
         version: 0.6.2
@@ -5714,6 +5717,7 @@ snapshots:
       discord.js: 14.19.3
       dotenv: 16.5.0
       express: 5.1.0
+      socket.io: 4.8.1
       vercel: 42.1.1
       xml2js: 0.6.2
       xmlhttprequest: 1.8.0

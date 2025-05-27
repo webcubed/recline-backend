@@ -25,14 +25,14 @@ Client -> api
 Api -> Client via websocket
 Api -> bot via webhook
 Bot -> Api via endpoint
-chat/realtime functions using ably
+chat/realtime functions using ~~ably~~ websockets
 
-- [ ] USE 1 webhook, as we can change the username in the request and recieve it from the bot.
-- [ ] Send message via webhook on api server
+- [x] USE 1 webhook, as we can change the username in the request and recieve it from the bot.
+- [x] Send message via webhook on api server
 - [ ] Fetch message via bot on bot server -> api server thru post request
 - [ ] Message creation on client on api server -> bot server
-- [ ] Communication to bot via separate channel
-- [ ] Note in bot server: try not to store too many large variables.
+- [ ] ~~Communication to bot via separate channel~~
+- [x] Note in bot server: try not to store too many large variables.
 
 Messages are sent to the server via the /sendMessage endpoint
 The server will check the token in the request, and if it is valid, it will send the message to the webhook

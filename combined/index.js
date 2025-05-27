@@ -1,14 +1,15 @@
 /* eslint-disable @stylistic/indent */
 import { Buffer } from "node:buffer";
-import { createServer } from "node:http";
+import { createServer } from "node:https";
+import fs from "node:fs";
 import process from "node:process";
 // eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
+import ws from "ws";
 // eslint-disable-next-line sort-imports
-import { Server } from "socket.io";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
 
@@ -118,8 +119,26 @@ async function fetchMessages(continueId = null) {
 /* ----------------------------- express config ----------------------------- */
 
 const app = express();
-const server = createServer(app);
-const io = new Server(server);
+const server = createServer(
+	{
+		key: fs.readFileSync("./key.pem"),
+		cert: fs.readFileSync("./cert.pem"),
+	},
+	app
+);
+const wsServer = new ws.Server({ server });
+wsServer.on("connection", (socket) => {
+	console.log("WebSocket client connected");
+	socket.on("message", (message) => {
+		console.log(`Received message: ${message}`);
+	});
+	socket.on("close", () => {
+		console.log("WebSocket client disconnected");
+	});
+});
+server.listen(3001, () => {
+	console.log("WebSocket server listening on port 3001");
+});
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
@@ -183,10 +202,9 @@ async function editStorage(operation, key, value) {
 	}
 }
 
-io.on("connection", () => {
-	console.log("a user connected");
+app.get("/", (request, response) => {
+	response.send("hi whats up");
 });
-
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
@@ -400,8 +418,13 @@ app.post("/check", async (request, response) => {
 	}
 });
 
-app.listen(3000, () => {
-	console.log("app listening on port 3000");
-});
-
+app
+	.listen(3000, () => {
+		console.log("app listening on port 3000");
+	})
+	.on("upgrade", (request, socket, head) => {
+		wsServer.handleUpgrade(request, socket, head, (socket) => {
+			wsServer.emit("connection", socket, request);
+		});
+	});
 export default app;
