@@ -207,6 +207,16 @@ async function editStorage(operation, key, value) {
 app.get("/", (request, response) => {
 	response.send("hi whats up");
 });
+app.get("/mappings", async (request, response) => {
+	const storage = structuredClone(await getStorage());
+
+	const mappings = Object.entries(storage.accounts).map(([account, data]) => ({
+		account,
+		name: data.name,
+	}));
+
+	response.json(mappings);
+});
 app.post("/genCode", async (request, response) => {
 	const { account, name } = request.body;
 	// Reject if account isn't whitelisted
@@ -301,17 +311,22 @@ app.post("/fetchMessages", async (request, response) => {
 app.get("/healthcheck", (request, response) => {
 	response.send("im alive");
 });
-async function userToMail(username) {
+app.post("/mailToUser", async (request, response) => {
+	const { code, account } = request.body;
 	const storage = structuredClone(await getStorage());
-	const account = Object.keys(storage.accounts).find(
-		async (account) => storage.accounts[account].name === username
-	);
-	if (!account) {
-		return "Account not found";
+	if (code !== storage.accounts[account].code) {
+		response.status(403).send("Invalid code");
+		return;
 	}
 
-	return account;
-}
+	const user = Object.keys(storage.accounts).find((user) => user === account);
+	if (!user) {
+		response.status(404).send("User not found");
+		return;
+	}
+
+	response.send({ username: storage.accounts[user].name });
+});
 
 async function fetchInbox() {
 	const xhr = new XMLHttpRequest();
