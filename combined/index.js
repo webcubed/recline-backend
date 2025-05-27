@@ -8,7 +8,7 @@ import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
-import ws from "ws";
+import ws, { WebSocketServer } from "ws";
 // eslint-disable-next-line sort-imports
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
@@ -41,12 +41,17 @@ client.on("messageCreate", async (message) => {
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-		wsServer.emit("message", {
+		const newmsg = {
 			timestamp: message.createdTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
-			author: message.author.username,
-		});
+			author: message.author.userername,
+		};
+		for (const client of wsServer.clients) {
+			if (client.readyState === WebSocket.OPEN) {
+				client.send(JSON.stringify(newmsg));
+			}
+		}
 	}
 });
 
