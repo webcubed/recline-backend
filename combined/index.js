@@ -65,15 +65,17 @@ async function fetchMessages(continueId = null) {
 	const rawMessages = [];
 
 	// Start fetching messages from the continueId if provided
-	let message = continueId
-		? await channel.messages.fetch(continueId)
-		: (async () => {
-				const messagePage = await channel.messages.fetch({
-					limit: 1,
-					force: true,
-				});
-				return messagePage.size === 1 ? messagePage.at(0) : null;
-			})();
+	let message;
+	if (continueId) {
+		await channel.messages.fetch(continueId);
+	} else {
+		const messagePage = await channel.messages.fetch({
+			limit: 1,
+			force: true,
+		});
+		return messagePage.size === 1 ? messagePage.at(0) : null;
+	}
+
 	let hasMore = true;
 	let lastMessageId = null;
 	rawMessages.push(message);
