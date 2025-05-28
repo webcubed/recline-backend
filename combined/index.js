@@ -50,10 +50,11 @@ client.on("messageCreate", async (message) => {
 			content,
 			cleanContent,
 			author: message.author.username,
+			id: message.id,
 		};
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
-				client.send(JSON.stringify(newmsg));
+				client.send(JSON.stringify({ type: "message", data: newmsg }));
 			}
 		}
 	}
@@ -117,6 +118,7 @@ async function fetchMessages(continueId = null) {
 			content,
 			cleanContent,
 			author: message.author.username,
+			id: message.id,
 		};
 	});
 	// Sort based on timestamp
@@ -126,6 +128,40 @@ async function fetchMessages(continueId = null) {
 		return dateA.getTime() - dateB.getTime();
 	});
 	return { messages, continueId: lastMessageId };
+}
+
+async function fetchMessageInfo(id) {
+	// Only return id, author, content, cleancontent and timestamp
+	try {
+		const channel = client.channels.cache.get(process.env.CHANNEL_ID);
+		const message = await channel.messages.fetch(id);
+		return {
+			id: message.id,
+			author: message.author.username,
+			content: message.content,
+			cleanContent: message.cleanContent,
+			timestamp: message.createdTimestamp,
+		};
+	} catch (error) {
+		console.error(error);
+	}
+}
+
+async function deleteMessage(id) {
+	try {
+		const channel = client.channels.cache.get(process.env.CHANNEL_ID);
+		const message = await channel.messages.fetch(id);
+		await message.delete();
+	} catch (error) {
+		console.error(error);
+	}
+	// Broadcast to people on the websocket that this message should be deleted
+
+	for (const client of wsServer.clients) {
+		if (client.readyState === WebSocket.OPEN) {
+			client.send(JSON.stringify({ type: "delete", data: id }));
+		}
+	}
 }
 /* ----------------------------- express config ----------------------------- */
 
@@ -154,10 +190,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
 	resource.header("Access-Control-Allow-Origin", "https://webcubed.is-a.dev");
-	resource.header(
-		"Access-Control-Allow-Methods",
-		"GET, POST, PUT, DELETE, OPTIONS"
-	);
+	resource.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 	resource.header(
 		"Access-Control-Allow-Headers",
 		"Content-Type, account, code, name"
@@ -325,7 +358,38 @@ app.post("/sendMessage", async (request, response) => {
 		response.status(500).send("Error sending message");
 	}
 });
+app.post("/deleteMessage", async (request, response) => {
+	const { messageId } = request.body;
+	// Need authorization
+	const account = request.body;
+	const code = request.get("code");
+	const storage = structuredClone(await getStorage());
+	if (code !== storage.accounts[account].code) {
+		response.send("Invalid code");
+		return;
+	}
 
+	if (storage.accounts[account].secure !== true) {
+		response.send("Not authorized");
+		return;
+	}
+
+	if (
+		(await fetchMessageInfo(messageId).author) !==
+		storage.accounts[account].name
+	) {
+		response.send("Not authorized");
+		return;
+	}
+
+	try {
+		await deleteMessage(messageId);
+		response.send("Message deleted");
+	} catch (error) {
+		console.error(error);
+		response.status(500).send("Error deleting message");
+	}
+});
 app.get("/fetchMessages", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
