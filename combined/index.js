@@ -109,7 +109,7 @@ async function fetchMessages(continueId = null) {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
 
 		return {
-			timestamp: message?.createdTimestamp,
+			timestamp: message.createdTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
 			author: message.author.username,
