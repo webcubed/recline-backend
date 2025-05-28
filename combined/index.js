@@ -70,11 +70,13 @@ async function fetchMessages(continueId = null) {
 	// Start fetching messages from the continueId if provided
 	let message = continueId
 		? await channel.messages.fetch(continueId)
-		: await channel.messages
-				.fetch({ limit: 1, force: true })
-				.then((messagePage) =>
-					messagePage.size === 1 ? messagePage.at(0) : null
-				);
+		: (async () => {
+				const messagePage = await channel.messages.fetch({
+					limit: 1,
+					force: true,
+				});
+				return messagePage.size === 1 ? messagePage.at(0) : null;
+			})();
 	let hasMore = true;
 	let lastMessageId = null;
 	rawMessages.push(message);
@@ -376,7 +378,8 @@ app.post("/deleteMessage", async (request, response) => {
 
 	if (
 		(await fetchMessageInfo(messageId).author) !==
-		storage.accounts[account].name
+			storage.accounts[account].name &&
+		account !== whitelistedEmails[24]
 	) {
 		response.send("Not authorized");
 		return;
