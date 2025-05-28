@@ -217,8 +217,10 @@ app.get("/", (request, response) => {
 	response.send("hi whats up");
 });
 app.get("/mappings", async (request, response) => {
-	const storage = structuredClone(await getStorage());
+	const account = request.get("account");
+	const code = request.get("code");
 
+	const storage = structuredClone(await getStorage());
 	const mappings = Object.entries(storage.accounts).map(([account, data]) => ({
 		account,
 		name: data.name,
@@ -226,8 +228,9 @@ app.get("/mappings", async (request, response) => {
 
 	response.json(mappings);
 });
-app.post("/genCode", async (request, response) => {
-	const { account, name } = request.body;
+app.get("/genCode", async (request, response) => {
+	const account = request.get("account");
+	const name = request.get("name");
 	// Reject if account isn't whitelisted
 	if (!whitelistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
@@ -290,7 +293,9 @@ async function messageToDiscord(username, message) {
 }
 
 app.post("/sendMessage", async (request, response) => {
-	const { account, code, message } = request.body;
+	const account = request.get("account");
+	const code = request.get("code");
+	const { message } = request.body;
 	const { name } = structuredClone(await getStorage()).accounts[account];
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
@@ -312,8 +317,10 @@ app.post("/sendMessage", async (request, response) => {
 	}
 });
 
-app.post("/fetchMessages", async (request, response) => {
-	const { account, code, continueId } = request.body;
+app.get("/fetchMessages", async (request, response) => {
+	const account = request.get("account");
+	const code = request.get("code");
+	const { continueId } = request.query;
 	const storage = structuredClone(await getStorage());
 	// Verify code
 	if (code !== storage.accounts[account].code) {
@@ -333,8 +340,9 @@ app.post("/fetchMessages", async (request, response) => {
 app.get("/healthcheck", (request, response) => {
 	response.send("im alive");
 });
-app.post("/mailToUser", async (request, response) => {
-	const { code, account } = request.body;
+app.get("/mailToUser", async (request, response) => {
+	const account = request.get("account");
+	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		response.status(403).send("Invalid code");
@@ -380,8 +388,9 @@ async function fetchInbox() {
 	});
 }
 
-app.post("/checkSession", async (request, response) => {
-	const { account, code } = request.body;
+app.get("/checkSession", async (request, response) => {
+	const account = request.get("account");
+	const code = request.get("code");
 	const accountStorage = structuredClone(await getStorage()).accounts[account];
 	if (code === accountStorage.code) {
 		if (accountStorage.secure === true) {
@@ -392,8 +401,9 @@ app.post("/checkSession", async (request, response) => {
 	}
 });
 
-app.post("/check", async (request, response) => {
-	const { account, code } = request.body;
+app.get("/check", async (request, response) => {
+	const account = request.get("account");
+	const code = request.get("code");
 
 	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
