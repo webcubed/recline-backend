@@ -254,6 +254,7 @@ app.get("/", (request, response) => {
 app.get("/mappings", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
+	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		response.status(403).send("Invalid code");
 		return;
@@ -264,7 +265,6 @@ app.get("/mappings", async (request, response) => {
 		return;
 	}
 
-	const storage = structuredClone(await getStorage());
 	const mappings = Object.entries(storage.accounts).map(([account, data]) => ({
 		account,
 		name: data.name,
