@@ -160,7 +160,7 @@ app.use((request, resource, next) => {
 	);
 	resource.header(
 		"Access-Control-Allow-Headers",
-		"Content-Type, Authorization"
+		"Content-Type, account, code, name"
 	);
 	next();
 });
@@ -219,6 +219,15 @@ app.get("/", (request, response) => {
 app.get("/mappings", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
+	if (code !== storage.accounts[account].code) {
+		response.status(403).send("Invalid code");
+		return;
+	}
+
+	if (storage.accounts[account].secure !== true) {
+		response.status(403).send("Not authorized");
+		return;
+	}
 
 	const storage = structuredClone(await getStorage());
 	const mappings = Object.entries(storage.accounts).map(([account, data]) => ({
@@ -391,20 +400,21 @@ async function fetchInbox() {
 app.get("/checkSession", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
+	const { ip } = request;
 	const accountStorage = structuredClone(await getStorage()).accounts[account];
 	if (code === accountStorage.code) {
 		if (accountStorage.secure === true) {
 			response.send("authorized :>");
 		}
 	} else {
-		response.send("Invalid code");
+		response.send("Not Authorized");
 	}
 });
 
 app.get("/check", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
-
+	const { ip } = request;
 	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
 	let parsedData;
