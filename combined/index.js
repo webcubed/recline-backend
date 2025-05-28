@@ -41,14 +41,11 @@ client.on("messageCreate", async (message) => {
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-		const cleanContent = message.cleanContent.replaceAll(/<@(\d+)>/g, "@$1");
-
-		const content = message.content.replaceAll(/<@(\d+)>/g, "@$1");
 
 		const newmsg = {
 			timestamp: message.createdTimestamp,
-			content,
-			cleanContent,
+			content: message.content,
+			cleanContent: message.cleanContent,
 			author: message.author.username,
 			id: message.id,
 		};
@@ -110,15 +107,11 @@ async function fetchMessages(continueId = null) {
 	// Create our own messages array
 	const unSortedMessages = rawMessages.map((rawData) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
-		// Sanitize cleanContent & content
-		const cleanContent = message.cleanContent.replaceAll(/<@(\d+)>/g, "@$1");
-
-		const content = message.content.replaceAll(/<@(\d+)>/g, "@$1");
 
 		return {
 			timestamp: message?.createdTimestamp,
-			content,
-			cleanContent,
+			content: message.content,
+			cleanContent: message.cleanContent,
 			author: message.author.username,
 			id: message.id,
 		};
