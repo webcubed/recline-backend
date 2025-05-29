@@ -294,19 +294,19 @@ app.get("/mappings", async (request, response) => {
 app.get("/genCode", async (request, response) => {
 	const account = request.get("account");
 	const name = request.get("name");
-	const { ip } = request;
+	const { ips } = request;
 	const storage = structuredClone(await getStorage());
 
 	// Reject if account isn't whitelisted
 	if (!whitelistedEmails.has(account)) {
-		response.status(403).send("Account not whitelisted");
+		response.status(403).json({ error: "Account not whitelisted" });
 		return;
 	}
 
 	// Reject if name already exists
 	for (const user in storage.accounts) {
 		if (storage.accounts[user].name === name) {
-			response.status(403).send("Name already exists");
+			response.status(403).json({ error: "Name already exists" });
 			return;
 		}
 	}
@@ -339,9 +339,9 @@ app.get("/genCode", async (request, response) => {
 		secure: false,
 	};
 	if (storage.accounts[account].preips) {
-		storage.accounts[account].preips.push(ip);
+		storage.accounts[account].preips.push(ips);
 	} else {
-		storage.accounts[account].preips = [ip];
+		storage.accounts[account].preips = [ips];
 	}
 
 	storage.accounts[account].ip ||= [];
@@ -503,16 +503,16 @@ async function fetchInbox() {
 app.get("/checkSession", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
-	const { ip } = request;
+	const { ips } = request;
 	const accountStorage = structuredClone(await getStorage()).accounts[account];
 	if (code === accountStorage.code) {
 		if (accountStorage.secure === true) {
-			if (!accountStorage.ips.includes(ip)) accountStorage.ips.push(ip);
+			if (!accountStorage.ips.includes(ips)) accountStorage.ips.push(ips);
 			modifyUser(account, "ips", accountStorage.ips);
 			response.send("authorized :>");
 		}
 	} else {
-		if (!accountStorage.preips.includes(ip)) accountStorage.preips.push(ip);
+		if (!accountStorage.preips.includes(ips)) accountStorage.preips.push(ips);
 		modifyUser(account, "preips", accountStorage.preips);
 		response.send("Not Authorized");
 	}
