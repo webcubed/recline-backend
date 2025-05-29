@@ -55,7 +55,30 @@ client.on("messageCreate", async (message) => {
 		}
 	}
 });
-
+client.on("messageDelete", async (message) => {
+	if (message.channelId === process.env.CHANNEL_ID) {
+		for (const client of wsServer.clients) {
+			if (client.readyState === WebSocket.OPEN) {
+				client.send(JSON.stringify({ type: "delete", data: message.id }));
+			}
+		}
+	}
+});
+client.on("messageUpdate", async (oldMessage, newMessage) => {
+	if (oldMessage.channelId === process.env.CHANNEL_ID) {
+		for (const client of wsServer.clients) {
+			if (client.readyState === WebSocket.OPEN) {
+				client.send(
+					JSON.stringify({
+						type: "update",
+						data: newMessage,
+						id: oldMessage.id,
+					})
+				);
+			}
+		}
+	}
+});
 client.login(token);
 /* -------------------------------- functions ------------------------------- */
 
