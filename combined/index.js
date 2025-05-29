@@ -295,11 +295,20 @@ app.get("/genCode", async (request, response) => {
 	const account = request.get("account");
 	const name = request.get("name");
 	const { ip } = request;
+	const storage = structuredClone(await getStorage());
 
 	// Reject if account isn't whitelisted
 	if (!whitelistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
 		return;
+	}
+
+	// Reject if name already exists
+	for (const user in storage.accounts) {
+		if (storage.accounts[user].name === name) {
+			response.status(403).send("Name already exists");
+			return;
+		}
 	}
 
 	let code = Array.from({ length: 18 })
@@ -324,7 +333,6 @@ app.get("/genCode", async (request, response) => {
 		.join("");
 	code = Buffer.from(code).toString("base64");
 
-	const storage = structuredClone(await getStorage());
 	storage.accounts[account] = {
 		name,
 		code,
