@@ -242,6 +242,12 @@ async function editStorage(operation, key, value) {
 	}
 }
 
+async function modifyUser(account, key, value) {
+	const storage = structuredClone(await getStorage());
+	storage.accounts[account][key] = value;
+	editStorage("update", "storage", storage);
+}
+
 app.get("/", (request, response) => {
 	response.send("hi whats up");
 });
@@ -269,6 +275,8 @@ app.get("/mappings", async (request, response) => {
 app.get("/genCode", async (request, response) => {
 	const account = request.get("account");
 	const name = request.get("name");
+	const { ip } = request;
+
 	// Reject if account isn't whitelisted
 	if (!whitelistedEmails.has(account)) {
 		response.status(403).send("Account not whitelisted");
@@ -302,6 +310,8 @@ app.get("/genCode", async (request, response) => {
 		name,
 		code,
 		secure: false,
+		ips: [], // When verified
+		preips: [ip], // Before authorized
 	};
 	editStorage("update", "storage", storage);
 
@@ -465,9 +475,13 @@ app.get("/checkSession", async (request, response) => {
 	const accountStorage = structuredClone(await getStorage()).accounts[account];
 	if (code === accountStorage.code) {
 		if (accountStorage.secure === true) {
+			accountStorage.ips.push(ip);
+			modifyUser(account, "ips", accountStorage.ips);
 			response.send("authorized :>");
 		}
 	} else {
+		accountStorage.preips.push(ip);
+		modifyUser(account, "preips", accountStorage.preips);
 		response.send("Not Authorized");
 	}
 });
@@ -475,7 +489,6 @@ app.get("/checkSession", async (request, response) => {
 app.get("/check", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
-	const { ip } = request;
 	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
 	let parsedData;
