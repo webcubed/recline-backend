@@ -127,20 +127,15 @@ async function fetchMessages(continueId = null) {
 }
 
 async function fetchMessageInfo(id) {
-	// Only return id, author, content, cleancontent and timestamp
-	try {
-		const channel = client.channels.cache.get(process.env.CHANNEL_ID);
-		const message = await channel.messages.fetch(id);
-		return {
-			id: message.id,
-			author: message.author.username,
-			content: message.content,
-			cleanContent: message.cleanContent,
-			timestamp: message.createdTimestamp,
-		};
-	} catch (error) {
-		console.error(error);
-	}
+	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
+	const message = await channel.messages.fetch(id);
+	return {
+		id: message.id,
+		author: message.author.username,
+		content: message.content,
+		cleanContent: message.cleanContent,
+		timestamp: message.createdTimestamp,
+	};
 }
 
 async function deleteMessage(id) {
