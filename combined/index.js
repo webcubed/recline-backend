@@ -378,7 +378,7 @@ app.post("/deleteMessage", async (request, response) => {
 	if (
 		(await fetchMessageInfo(messageId).author) !==
 			storage.accounts[account].name &&
-		account !== whitelistedEmails[24]
+		account !== JSON.parse(process.env.WHITELISTED_EMAILS)[24]
 	) {
 		response.send("Not authorized");
 		return;
