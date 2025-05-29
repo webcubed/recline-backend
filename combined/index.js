@@ -128,7 +128,8 @@ async function fetchMessages(continueId = null) {
 
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
-	const message = await channel.messages.fetch(id);
+	const rawmsg = await channel.messages.fetch(id);
+	const message = Array.isArray(rawmsg) ? rawmsg[1] : rawmsg;
 	return {
 		id: message.id,
 		author: message.author.username,
