@@ -1,4 +1,3 @@
-/* eslint-disable @stylistic/indent */
 import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
@@ -492,7 +491,7 @@ app.get("/check", async (request, response) => {
 	const count = parsedData.feed.fullcount[0];
 	console.log(`Count: ${count}`);
 	const entries = parsedData.feed.entry;
-	const storage = await getStorage();
+	const storage = structuredClone(await getStorage());
 	const accountCode = storage.accounts[account]?.code;
 
 	for (const entry of entries) {
