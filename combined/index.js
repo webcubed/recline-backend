@@ -361,7 +361,7 @@ app.post("/sendMessage", async (request, response) => {
 	}
 });
 app.post("/deleteMessage", async (request, response) => {
-	const { messageId: id } = request.body;
+	const { id } = request.body;
 	// Need authorization
 	const account = request.get("account");
 	const code = request.get("code");
@@ -377,8 +377,7 @@ app.post("/deleteMessage", async (request, response) => {
 	}
 
 	if (
-		(await fetchMessageInfo(id).author) !==
-			storage.accounts[account].name &&
+		(await fetchMessageInfo(id).author) !== storage.accounts[account].name &&
 		account !== JSON.parse(process.env.WHITELISTED_EMAILS)[24]
 	) {
 		response.send("Not authorized");
