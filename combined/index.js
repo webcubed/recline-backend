@@ -143,13 +143,10 @@ async function fetchMessageInfo(id) {
 }
 
 async function deleteMessage(id) {
-	try {
-		const channel = client.channels.cache.get(process.env.CHANNEL_ID);
-		const message = await channel.messages.fetch(id);
-		await message.delete();
-	} catch (error) {
-		console.error(error);
-	}
+	console.log(`Deleting message: ${id}`);
+	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
+	const message = await channel.messages.fetch(id);
+	await message.delete();
 	// Broadcast to people on the websocket that this message should be deleted
 
 	for (const client of wsServer.clients) {
