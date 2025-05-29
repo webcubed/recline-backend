@@ -362,6 +362,7 @@ app.post("/sendMessage", async (request, response) => {
 });
 app.post("/deleteMessage", async (request, response) => {
 	const { messageId } = request.body;
+	console.log(`request to delete ${messageId}`);
 	// Need authorization
 	const account = request.get("account");
 	const code = request.get("code");
