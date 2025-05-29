@@ -129,14 +129,17 @@ async function fetchMessages(continueId = null) {
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawmsg = await channel.messages.fetch(id);
-	const message = Array.isArray(rawmsg) ? rawmsg[1] : rawmsg;
-	return {
-		id: message.id,
-		author: message.author.username,
-		content: message.content,
-		cleanContent: message.cleanContent,
-		timestamp: message.createdTimestamp,
-	};
+	const mappedMessages = rawmsg.map((rawData) => {
+		const message = Array.isArray(rawData) ? rawData[1] : rawData;
+		return {
+			id: message.id,
+			author: message.author.username,
+			content: message.content,
+			cleanContent: message.cleanContent,
+			timestamp: message.createdTimestamp,
+		};
+	});
+	return mappedMessages;
 }
 
 async function deleteMessage(id) {
