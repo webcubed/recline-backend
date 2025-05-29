@@ -324,14 +324,20 @@ app.get("/genCode", async (request, response) => {
 		.join("");
 	code = Buffer.from(code).toString("base64");
 
-	const storage = await getStorage();
+	const storage = structuredClone(await getStorage());
 	storage.accounts[account] = {
 		name,
 		code,
 		secure: false,
-		ips: [], // When verified
-		preips: [ip], // Before authorized
 	};
+	if (storage.accounts[account].preips) {
+		storage.accounts[account].preips.push(ip);
+	} else {
+		storage.accounts[account].preips = [ip];
+	}
+
+	storage.accounts[account].ip ||= [];
+
 	editStorage("update", "storage", storage);
 
 	response.json({ code, account });
@@ -493,12 +499,12 @@ app.get("/checkSession", async (request, response) => {
 	const accountStorage = structuredClone(await getStorage()).accounts[account];
 	if (code === accountStorage.code) {
 		if (accountStorage.secure === true) {
-			accountStorage.ips.push(ip);
+			if (!accountStorage.ips.includes(ip)) accountStorage.ips.push(ip);
 			modifyUser(account, "ips", accountStorage.ips);
 			response.send("authorized :>");
 		}
 	} else {
-		accountStorage.preips.push(ip);
+		if (!accountStorage.preips.includes(ip)) accountStorage.preips.push(ip);
 		modifyUser(account, "preips", accountStorage.preips);
 		response.send("Not Authorized");
 	}
