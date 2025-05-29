@@ -66,11 +66,7 @@ async function fetchMessages(continueId = null) {
 	// Start fetching messages from the continueId if provided
 	let message;
 	if (continueId) {
-		message = await channel.messages.fetch({
-			limit: 1,
-			force: true,
-			around: continueId,
-		});
+		message = await channel.messages.fetch(continueId);
 	} else {
 		const messagePage = await channel.messages.fetch({
 			limit: 1,
@@ -132,11 +128,8 @@ async function fetchMessages(continueId = null) {
 
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
-	const message = await channel.messages.fetch({
-		limit: 1,
-		force: true,
-		around: id,
-	});
+	const message = await channel.messages.fetch(id);
+	console.log(message);
 	return {
 		id: message.id,
 		author: message.author.username,
@@ -149,11 +142,7 @@ async function fetchMessageInfo(id) {
 async function deleteMessage(id) {
 	try {
 		const channel = client.channels.cache.get(process.env.CHANNEL_ID);
-		const message = await channel.messages.fetch({
-			limit: 1,
-			force: true,
-			around: id,
-		});
+		const message = await channel.messages.fetch(id);
 		await message.delete();
 	} catch (error) {
 		console.error(error);
