@@ -361,8 +361,7 @@ app.post("/sendMessage", async (request, response) => {
 	}
 });
 app.post("/deleteMessage", async (request, response) => {
-	const { messageId } = request.body;
-	console.log(`request to delete ${messageId}`);
+	const { messageId: id } = request.body;
 	// Need authorization
 	const account = request.get("account");
 	const code = request.get("code");
@@ -378,7 +377,7 @@ app.post("/deleteMessage", async (request, response) => {
 	}
 
 	if (
-		(await fetchMessageInfo(messageId).author) !==
+		(await fetchMessageInfo(id).author) !==
 			storage.accounts[account].name &&
 		account !== JSON.parse(process.env.WHITELISTED_EMAILS)[24]
 	) {
@@ -387,7 +386,7 @@ app.post("/deleteMessage", async (request, response) => {
 	}
 
 	try {
-		await deleteMessage(messageId);
+		await deleteMessage(id);
 		response.send("Message deleted");
 	} catch (error) {
 		console.error(error);
