@@ -358,7 +358,7 @@ app.post("/sendMessage", async (request, response) => {
 app.post("/deleteMessage", async (request, response) => {
 	const { messageId } = request.body;
 	// Need authorization
-	const account = request.body;
+	const account = request.get("account");
 	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
