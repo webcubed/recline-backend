@@ -129,7 +129,7 @@ async function fetchMessages(continueId = null) {
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawmsg = await channel.messages.fetch(id);
-	const mappedMessages = rawmsg.map((rawData) => {
+	const mappedMessages = rawmsg.map(([rawData]) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
 		return {
 			id: message.id,
