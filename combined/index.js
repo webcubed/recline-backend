@@ -201,6 +201,7 @@ wsServer.on("connection", (socket) => {
 server.listen(3001, () => {
 	console.log("WebSocket server listening on port 3001");
 });
+app.set("trust proxy", true);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
@@ -269,6 +270,9 @@ async function modifyUser(account, key, value) {
 
 app.get("/", (request, response) => {
 	response.send("hi whats up");
+});
+app.get("/healthcheck", (request, response) => {
+	response.send("im alive");
 });
 app.get("/mappings", async (request, response) => {
 	const account = request.get("account");
@@ -440,9 +444,7 @@ app.get("/fetchMessages", async (request, response) => {
 	const messages = await fetchMessages(continueId ?? null);
 	response.send(messages);
 });
-app.get("/healthcheck", (request, response) => {
-	response.send("im alive");
-});
+
 app.get("/mailToUser", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
