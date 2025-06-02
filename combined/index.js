@@ -86,7 +86,6 @@ async function fetchMessages(continueId = null) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawMessages = [];
 
-	// Start fetching messages from the continueId if provided
 	let message;
 	if (continueId) {
 		message = await channel.messages.fetch(continueId);
@@ -98,27 +97,22 @@ async function fetchMessages(continueId = null) {
 		message = messagePage.size === 1 ? messagePage.at(0) : null;
 	}
 
-	let hasMore = true;
 	let lastMessageId = null;
 	rawMessages.push(message);
-	while (hasMore && message) {
-		// eslint-disable-next-line no-await-in-loop
-		const messagePage = await channel.messages.fetch({
-			limit: 50,
-			force: true,
-			before: message.id,
-		});
-		for (const message_ of messagePage) {
-			rawMessages.push(message_);
-		}
-
-		if (messagePage.size > 0) {
-			message = messagePage.at(messagePage.size - 1);
-			lastMessageId = message.id;
-		} else {
-			hasMore = false;
-		}
+	const messagePage = await channel.messages.fetch({
+		limit: 50,
+		force: true,
+		before: message.id,
+	});
+	for (const message_ of messagePage) {
+		rawMessages.push(message_);
 	}
+
+	if (messagePage.size > 0) {
+		message = messagePage.at(messagePage.size - 1);
+		lastMessageId = message.id;
+	}
+
 	/* --------------------------------- parsing -------------------------------- */
 	// In the messages array, each item will be another array.
 	// In this 2nd array, the first item will be the message Id,
