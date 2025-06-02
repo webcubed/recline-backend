@@ -301,8 +301,8 @@ app.get("/genCode", async (request, response) => {
 	}
 
 	// Reject if name already exists
-	for (const user in storage.accounts) {
-		if (storage.accounts[user].name === name) {
+	for (const user in Object.keys(storage.accounts)) {
+		if (user !== account && storage.accounts[user].name === name) {
 			response.status(403).json({ error: "Name already exists" });
 			return;
 		}
