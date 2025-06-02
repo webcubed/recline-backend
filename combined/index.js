@@ -34,19 +34,28 @@ client.on("messageCreate", async (message) => {
 
 	// Read message, gather ID, send to client
 	if (message.channelId === process.env.CHANNEL_ID) {
+		const storage = structuredClone(await getStorage());
 		console.log(
 			`%cMessage from: %c${message.author.username} %cMessage: ${message.content}`,
 			"color: #8aadf4",
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-
 		const newmsg = {
 			timestamp: message.createdTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
 			author: message.author.username,
 			id: message.id,
+			email:
+				mappings.find((data) => data.id === message.id)?.email ||
+				Object.keys(storage.accounts)[
+					Object.values(storage.accounts).indexOf(
+						Object.values(storage.accounts).find(
+							(data) => data.name === message.author.username
+						)
+					)
+				],
 		};
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
@@ -85,7 +94,7 @@ client.login(token);
 async function fetchMessages(continueId = null) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawMessages = [];
-
+	const storage = structuredClone(await getStorage());
 	let message;
 	if (continueId) {
 		message = await channel.messages.fetch(continueId);
@@ -95,7 +104,7 @@ async function fetchMessages(continueId = null) {
 			force: true,
 		});
 		message = messagePage.size === 1 ? messagePage.at(0) : null;
-		rawMessages.push(message)
+		rawMessages.push(message);
 	}
 
 	let lastMessageId = null;
@@ -132,6 +141,15 @@ async function fetchMessages(continueId = null) {
 			cleanContent: message.cleanContent,
 			author: message.author.username,
 			id: message.id,
+			email:
+				mappings.find((data) => data.id === message.id)?.email ||
+				Object.keys(storage.accounts)[
+					Object.values(storage.accounts).indexOf(
+						Object.values(storage.accounts).find(
+							(data) => data.name === message.author.username
+						)
+					)
+				],
 		};
 	});
 	// Sort based on timestamp
@@ -146,6 +164,7 @@ async function fetchMessages(continueId = null) {
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawmsg = await channel.messages.fetch(id);
+	const storage = structuredClone(await getStorage());
 	const mappedMessages = [rawmsg].map((rawData) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
 		return {
@@ -154,6 +173,15 @@ async function fetchMessageInfo(id) {
 			content: message.content,
 			cleanContent: message.cleanContent,
 			timestamp: message.createdTimestamp,
+			email:
+				mappings.find((data) => data.id === message.id)?.email ||
+				Object.keys(storage.accounts)[
+					Object.values(storage.accounts).indexOf(
+						Object.values(storage.accounts).find(
+							(data) => data.name === message.author.username
+						)
+					)
+				],
 		};
 	});
 	return mappedMessages;
@@ -209,6 +237,7 @@ app.use((request, resource, next) => {
 });
 /* -------------------------------- variables ------------------------------- */
 const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
+const mappings = new Set(JSON.parse(process.env.MAPPINGS));
 async function getStorage() {
 	const options = {
 		method: "GET",
