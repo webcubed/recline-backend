@@ -48,7 +48,7 @@ client.on("messageCreate", async (message) => {
 			author: message.author.username,
 			id: message.id,
 			email:
-				mappings.find((data) => data.id === message.id)?.email ||
+				mappings.find((data) => data.id === message.author.id)?.email ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
 						Object.values(storage.accounts).find(
@@ -142,7 +142,7 @@ async function fetchMessages(continueId = null) {
 			author: message.author.username,
 			id: message.id,
 			email:
-				mappings.find((data) => data.id === message.id)?.email ||
+				mappings.find((data) => data.id === message.author.id)?.email ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
 						Object.values(storage.accounts).find(
@@ -174,7 +174,7 @@ async function fetchMessageInfo(id) {
 			cleanContent: message.cleanContent,
 			timestamp: message.createdTimestamp,
 			email:
-				mappings.find((data) => data.id === message.id)?.email ||
+				mappings.find((data) => data.id === message.author.id)?.email ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
 						Object.values(storage.accounts).find(
@@ -314,6 +314,7 @@ app.get("/mappings", async (request, response) => {
 	const mappings = Object.entries(storage.accounts).map(([account, data]) => ({
 		account,
 		name: data.name,
+		names: data.names,
 	}));
 
 	response.json(mappings);
@@ -376,22 +377,7 @@ app.get("/genCode", async (request, response) => {
 
 	response.json({ code, account });
 });
-app.get("/pastUsernames", async (request, response) => {
-	const account = request.get("account");
-	const code = request.get("code");
-	const storage = structuredClone(await getStorage());
-	if (code !== storage.accounts[account].code) {
-		response.status(403).send("Invalid code");
-		return;
-	}
 
-	if (storage.accounts[account].secure !== true) {
-		response.status(403).send("Not authorized");
-		return;
-	}
-
-	response.json(storage.accounts[account].names);
-});
 async function messageToDiscord(username, message) {
 	// Send message to recline channel using webhook for storage
 	const webhookUrl = process.env.CHAT_WEBHOOK;
