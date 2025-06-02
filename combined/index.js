@@ -237,7 +237,7 @@ app.use((request, resource, next) => {
 });
 /* -------------------------------- variables ------------------------------- */
 const whitelistedEmails = new Set(JSON.parse(process.env.WHITELISTED_EMAILS));
-const mappings = new Set(JSON.parse(process.env.MAPPINGS));
+const mappings = JSON.parse(process.env.MAPPINGS);
 async function getStorage() {
 	const options = {
 		method: "GET",
