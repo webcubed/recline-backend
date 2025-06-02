@@ -48,7 +48,7 @@ client.on("messageCreate", async (message) => {
 			author: message.author.username,
 			id: message.id,
 			email:
-				mappings.find((data) => data.id === message.author.id)?.email ||
+				mappings.find((data) => data.id === message.author.id)?.accout ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
 						Object.values(storage.accounts).find((data) =>
@@ -174,7 +174,7 @@ async function fetchMessageInfo(id) {
 			cleanContent: message.cleanContent,
 			timestamp: message.createdTimestamp,
 			email:
-				mappings.find((data) => data.id === message.author.id)?.email ||
+				mappings.find((data) => data.id === message.author.id)?.account ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
 						Object.values(storage.accounts).find((data) =>
