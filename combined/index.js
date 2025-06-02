@@ -592,6 +592,8 @@ app.get("/check", async (request, response) => {
 			console.log("matches nicely");
 			// Approval
 			response.send("authorized :>");
+			// SET TO SECURE????
+			modifyUser(account, "secure", true);
 			// This should only be used to load the dashboard.
 			// Subsequent requests should also cross check the code.
 			return;
