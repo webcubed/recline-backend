@@ -142,7 +142,7 @@ async function fetchMessages(continueId = null) {
 			author: message.author.username,
 			id: message.id,
 			email:
-				mappings.find((data) => data.id === message.author.id)?.email ||
+				mappings.find((data) => data.id === message.author.id)?.account ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
 						Object.values(storage.accounts).find((data) =>
