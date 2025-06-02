@@ -51,8 +51,8 @@ client.on("messageCreate", async (message) => {
 				mappings.find((data) => data.id === message.author.id)?.email ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
-						Object.values(storage.accounts).find(
-							(data) => data.name === message.author.username
+						Object.values(storage.accounts).find((data) =>
+							data.names.includes(message.author.username)
 						)
 					)
 				],
@@ -145,8 +145,8 @@ async function fetchMessages(continueId = null) {
 				mappings.find((data) => data.id === message.author.id)?.email ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
-						Object.values(storage.accounts).find(
-							(data) => data.name === message.author.username
+						Object.values(storage.accounts).find((data) =>
+							data.names.includes(message.author.username)
 						)
 					)
 				],
@@ -177,8 +177,8 @@ async function fetchMessageInfo(id) {
 				mappings.find((data) => data.id === message.author.id)?.email ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
-						Object.values(storage.accounts).find(
-							(data) => data.name === message.author.username
+						Object.values(storage.accounts).find((data) =>
+							data.names.includes(message.author.username)
 						)
 					)
 				],
