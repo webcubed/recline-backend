@@ -98,7 +98,6 @@ async function fetchMessages(continueId = null) {
 	}
 
 	let lastMessageId = null;
-	rawMessages.push(message);
 	const messagePage = await channel.messages.fetch({
 		limit: 50,
 		force: true,
