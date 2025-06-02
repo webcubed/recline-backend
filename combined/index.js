@@ -331,7 +331,7 @@ app.get("/genCode", async (request, response) => {
 
 	// Reject if name already exists
 	// Don't reject if trying to replace same account
-	for(const user of Object.keys(storage.accounts)) {
+	for (const user of Object.keys(storage.accounts)) {
 		if (storage.accounts[user].name === name && user !== account) {
 			response.status(403).json({ error: "Name already exists" });
 			return;
@@ -365,9 +365,32 @@ app.get("/genCode", async (request, response) => {
 		code,
 		secure: false,
 	};
+	// If "names" array exists, push name to array, Else, create array and push name to array
+	if (storage.names) {
+		storage.names.push(name);
+	} else {
+		storage.names = [name];
+	}
+
 	editStorage("update", "storage", storage);
 
 	response.json({ code, account });
+});
+app.get("/pastUsernames", async (request, response) => {
+	const account = request.get("account");
+	const code = request.get("code");
+	const storage = structuredClone(await getStorage());
+	if (code !== storage.accounts[account].code) {
+		response.status(403).send("Invalid code");
+		return;
+	}
+
+	if (storage.accounts[account].secure !== true) {
+		response.status(403).send("Not authorized");
+		return;
+	}
+
+	response.json(storage.accounts[account].names);
 });
 async function messageToDiscord(username, message) {
 	// Send message to recline channel using webhook for storage
