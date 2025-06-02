@@ -95,6 +95,7 @@ async function fetchMessages(continueId = null) {
 			force: true,
 		});
 		message = messagePage.size === 1 ? messagePage.at(0) : null;
+		rawMessages.push(message)
 	}
 
 	let lastMessageId = null;
