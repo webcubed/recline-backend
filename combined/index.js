@@ -535,9 +535,11 @@ app.get("/checkSession", async (request, response) => {
 	if (code === accountStorage.code) {
 		if (accountStorage.secure === true) {
 			response.send("authorized :>");
+		} else {
+			response.send("Not Authorized")
 		}
 	} else {
-		response.send("Not Authorized");
+		response.send("Invalid code");
 	}
 });
 
