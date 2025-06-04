@@ -48,7 +48,8 @@ client.on("messageCreate", async (message) => {
 			author: message.author.username,
 			id: message.id,
 			email:
-				mappings.find((data) => data.discordId === message.author.id)?.accout ||
+				mappings.find((data) => data.discordId === message.author.id)
+					?.account ||
 				Object.keys(storage.accounts)[
 					Object.values(storage.accounts).indexOf(
 						Object.values(storage.accounts).find((data) =>
@@ -536,7 +537,7 @@ app.get("/checkSession", async (request, response) => {
 		if (accountStorage.secure === true) {
 			response.send("authorized :>");
 		} else {
-			response.send("Not Authorized")
+			response.send("Not Authorized");
 		}
 	} else {
 		response.send("Invalid code");
