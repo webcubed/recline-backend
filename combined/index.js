@@ -641,7 +641,7 @@ app.get("/check", async (request, response) => {
 });
 
 const authenticate = async (request) => {
-	const { account, code } = parse(request.url, true).query;
+	const { account, code } = request.query;
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		return false;
