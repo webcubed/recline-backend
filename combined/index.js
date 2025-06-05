@@ -3,7 +3,6 @@ import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
 // eslint-disable-next-line sort-imports
-import parse from "node:url";
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -642,7 +641,7 @@ app.get("/check", async (request, response) => {
 });
 
 const authenticate = async (request) => {
-	const { account, code } = parse(request.url, true).query;
+	const { account, code } = new URL(request.url, true).searchParams;
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		return false;
