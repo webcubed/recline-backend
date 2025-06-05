@@ -659,8 +659,8 @@ app
 	.listen(3000, () => {
 		console.log("app listening on port 3000");
 	})
-	.on("upgrade", (request, socket, head) => {
-		const authed = authenticate(request);
+	.on("upgrade", async (request, socket, head) => {
+		const authed = await authenticate(request);
 
 		if (!authed) {
 			// \r\n\r\n: These are control characters used in HTTP to
