@@ -239,7 +239,22 @@ const server = createServer(
 	app
 );
 const wsServer = new ws.Server({ server });
-wsServer.on("connection", (socket) => {
+wsServer.on("connection", async (socket, request) => {
+	// Authenticate
+	const { account, code } = request.url.search(
+		/\?account=([^&]+)&code=([^&]+)/
+	);
+	const storage = structuredClone(await getStorage());
+	if (code !== storage.accounts[account].code) {
+		socket.close();
+		return;
+	}
+
+	if (storage.accounts[account].secure !== true) {
+		socket.close();
+		return;
+	}
+
 	console.log("WebSocket client connected");
 	socket.on("message", (message) => {
 		console.log(`Received message: ${message}`);
@@ -641,8 +656,7 @@ app.get("/check", async (request, response) => {
 });
 
 const authenticate = async (request) => {
-	const baseURL = request.protocol + "://" + request.headers.host + "/";
-	const { account, code } = new URL(request.url, baseURL).searchParams;
+	const { account, code } = request.query;
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		return false;
@@ -660,16 +674,6 @@ app
 		console.log("app listening on port 3000");
 	})
 	.on("upgrade", async (request, socket, head) => {
-		const authed = await authenticate(request);
-
-		if (!authed) {
-			// \r\n\r\n: These are control characters used in HTTP to
-			// denote the end of the HTTP headers section.
-			socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-			socket.destroy();
-			return;
-		}
-
 		wsServer.handleUpgrade(request, socket, head, (socket) => {
 			wsServer.emit("connection", socket, request);
 		});
