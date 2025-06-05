@@ -75,13 +75,34 @@ client.on("messageDelete", async (message) => {
 	}
 });
 client.on("messageUpdate", async (oldMessage, newMessage) => {
+	const storage = structuredClone(await getStorage());
 	if (oldMessage.channelId === process.env.CHANNEL_ID) {
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
+				const mappedMessages = [newMessage].map((rawData) => {
+					const message = Array.isArray(rawData) ? rawData[1] : rawData;
+					return {
+						id: message.id,
+						author: message.author.username,
+						content: message.content,
+						cleanContent: message.cleanContent,
+						timestamp: message.createdTimestamp,
+						email:
+							mappings.find((data) => data.discordId === message.author.id)
+								?.account ||
+							Object.keys(storage.accounts)[
+								Object.values(storage.accounts).indexOf(
+									Object.values(storage.accounts).find((data) =>
+										data.names.includes(message.author.username)
+									)
+								)
+							],
+					};
+				});
 				client.send(
 					JSON.stringify({
 						type: "update",
-						data: fetchMessageInfo(oldMessage.id),
+						data: mappedMessages,
 						id: oldMessage.id,
 						editedTimestamp: newMessage.editedTimestamp,
 					})
