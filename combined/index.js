@@ -640,11 +640,35 @@ app.get("/check", async (request, response) => {
 	}
 });
 
+const authenticate = async (request) => {
+	const { account, code } = parse(request.url, true).query;
+	const storage = structuredClone(await getStorage());
+	if (code !== storage.accounts[account].code) {
+		return false;
+	}
+
+	if (storage.accounts[account].secure !== true) {
+		return false;
+	}
+
+	return true;
+};
+
 app
 	.listen(3000, () => {
 		console.log("app listening on port 3000");
 	})
 	.on("upgrade", (request, socket, head) => {
+		const authed = authenticate(request);
+
+		if (!authed) {
+			// \r\n\r\n: These are control characters used in HTTP to
+			// denote the end of the HTTP headers section.
+			socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+			socket.destroy();
+			return;
+		}
+
 		wsServer.handleUpgrade(request, socket, head, (socket) => {
 			wsServer.emit("connection", socket, request);
 		});
