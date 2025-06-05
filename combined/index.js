@@ -43,6 +43,7 @@ client.on("messageCreate", async (message) => {
 		);
 		const newmsg = {
 			timestamp: message.createdTimestamp,
+			editedTimestamp: message.editedTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
 			author: message.author.username,
@@ -86,6 +87,7 @@ client.on("messageUpdate", async (oldMessage, newMessage) => {
 						content: message.content,
 						cleanContent: message.cleanContent,
 						timestamp: message.createdTimestamp,
+						editedTimestamp: message.editedTimestamp,
 						email:
 							mappings.find((data) => data.discordId === message.author.id)
 								?.account ||
@@ -159,6 +161,7 @@ async function fetchMessages(continueId = null) {
 
 		return {
 			timestamp: message.createdTimestamp,
+			editedTimestamp: message.editedTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
 			author: message.author.username,
@@ -196,6 +199,7 @@ async function fetchMessageInfo(id) {
 			content: message.content,
 			cleanContent: message.cleanContent,
 			timestamp: message.createdTimestamp,
+			editedTimestamp: message.editedTimestamp,
 			email:
 				mappings.find((data) => data.discordId === message.author.id)
 					?.account ||
