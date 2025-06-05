@@ -241,6 +241,7 @@ const server = createServer(
 const wsServer = new ws.Server({ server });
 wsServer.on("connection", async (socket, request) => {
 	// Authenticate
+	console.log(request.url);
 	const account = request.url.search(/\?account=(.*)&/)[1];
 	const code = request.url.search(/&code=(.*)/)[1];
 	const storage = structuredClone(await getStorage());
