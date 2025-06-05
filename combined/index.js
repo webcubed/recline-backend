@@ -81,8 +81,9 @@ client.on("messageUpdate", async (oldMessage, newMessage) => {
 				client.send(
 					JSON.stringify({
 						type: "update",
-						data: newMessage,
+						data: fetchMessageInfo(oldMessage.id),
 						id: oldMessage.id,
+						editedTimestamp: newMessage.editedTimestamp,
 					})
 				);
 			}
