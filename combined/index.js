@@ -253,12 +253,30 @@ wsServer.on("connection", async (socket, request) => {
 		return;
 	}
 
+	socket.id = account;
 	console.log("WebSocket client connected");
+	// Broadcast
+	for (const client of wsServer.clients) {
+		if (client.readyState === WebSocket.OPEN) {
+			client.send(JSON.stringify({ type: "connect", data: socket.id }));
+		}
+	}
+
 	socket.on("message", (message) => {
 		console.log(`Received message: ${message}`);
 	});
 	socket.on("close", () => {
-		console.log("WebSocket client disconnected");
+		if (socket.id) {
+			console.log(socket.id + " disconnected");
+			// Broadcast
+			for (const client of wsServer.clients) {
+				if (client.readyState === WebSocket.OPEN) {
+					client.send(JSON.stringify({ type: "disconnect", data: socket.id }));
+				}
+			}
+		} else {
+			console.log("WebSocket client disconnected");
+		}
 	});
 });
 server.listen(3001, () => {
