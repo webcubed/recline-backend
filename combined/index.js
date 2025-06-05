@@ -79,8 +79,7 @@ client.on("messageUpdate", async (oldMessage, newMessage) => {
 	if (oldMessage.channelId === process.env.CHANNEL_ID) {
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
-				const mappedMessages = [newMessage].map((rawData) => {
-					const message = Array.isArray(rawData) ? rawData[1] : rawData;
+				const mappedMessages = [newMessage].map((message) => {
 					return {
 						id: message.id,
 						author: message.author.username,
@@ -102,7 +101,7 @@ client.on("messageUpdate", async (oldMessage, newMessage) => {
 				client.send(
 					JSON.stringify({
 						type: "update",
-						data: mappedMessages,
+						data: mappedMessages[0],
 						id: oldMessage.id,
 						editedTimestamp: newMessage.editedTimestamp,
 					})
