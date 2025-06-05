@@ -241,9 +241,8 @@ const server = createServer(
 const wsServer = new ws.Server({ server });
 wsServer.on("connection", async (socket, request) => {
 	// Authenticate
-	const { account, code } = request.url.search(
-		/\?account=([^&]+)&code=([^&]+)/
-	);
+	const account = request.url.search(/\?account=(.*)&/)[1];
+	const code = request.url.search(/&code=(.*)/)[1];
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		socket.close();
@@ -654,20 +653,6 @@ app.get("/check", async (request, response) => {
 		}
 	}
 });
-
-const authenticate = async (request) => {
-	const { account, code } = request.query;
-	const storage = structuredClone(await getStorage());
-	if (code !== storage.accounts[account].code) {
-		return false;
-	}
-
-	if (storage.accounts[account].secure !== true) {
-		return false;
-	}
-
-	return true;
-};
 
 app
 	.listen(3000, () => {
