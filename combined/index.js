@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
-// eslint-disable-next-line sort-imports
+import { request } from "node:http";
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -216,7 +216,6 @@ async function fetchMessageInfo(id) {
 }
 
 async function deleteMessage(id) {
-	console.log(`Deleting message: ${id}`);
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const message = await channel.messages.fetch(id);
 	await message.delete();
@@ -241,9 +240,8 @@ const server = createServer(
 const wsServer = new ws.Server({ server });
 wsServer.on("connection", async (socket, request) => {
 	// Authenticate
-	console.log(request.url);
-	const account = request.url.search(/\?account=(.*)&/)[1];
-	const code = request.url.search(/&code=(.*)/)[1];
+	const account = request.url.match(/\?email=(.*)&/)[1];
+	const code = request.url.match(/&code=(.*)/)[1];
 	const storage = structuredClone(await getStorage());
 	if (code !== storage.accounts[account].code) {
 		socket.close();
@@ -334,6 +332,47 @@ async function modifyUser(account, key, value) {
 	editStorage("update", "storage", storage);
 }
 
+async function messageToDiscord(username, message) {
+	// Send message to recline channel using webhook for storage
+	const webhookUrl = process.env.CHAT_WEBHOOK;
+	const data = {
+		content: message,
+		username,
+	};
+	const options = {
+		method: "POST",
+		url: webhookUrl,
+		headers: {
+			"Content-Type": "application/json",
+		},
+		data: JSON.stringify(data),
+	};
+	try {
+		const response = await axios.request(options);
+		return response.data;
+	} catch (error) {
+		return error;
+	}
+}
+
+const authorize = async (request) => {
+	const account = request.get("account");
+	const code = request.get("code");
+	const storage = structuredClone(await getStorage());
+	console.log(account + " is trying to access " + request.url);
+	if (code !== storage.accounts[account].code) {
+		console.log(account + " had invalid code");
+		return false;
+	}
+
+	if (storage.accounts[account].secure !== true) {
+		console.log(account + " was not secure");
+		return false;
+	}
+
+	return true;
+};
+
 app.get("/", (request, response) => {
 	response.send("hi whats up");
 });
@@ -341,17 +380,9 @@ app.get("/healthcheck", (request, response) => {
 	response.send("im alive");
 });
 app.get("/mappings", async (request, response) => {
-	const account = request.get("account");
-	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
-	if (code !== storage.accounts[account].code) {
-		response.status(403).send("Invalid code");
-		return;
-	}
-
-	if (storage.accounts[account].secure !== true) {
-		response.status(403).send("Not authorized");
-		return;
+	if (!(await authorize(request))) {
+		return response.status(403).send("Not authorized");
 	}
 
 	const mappings = Object.entries(storage.accounts).map(([account, data]) => ({
@@ -417,51 +448,21 @@ app.get("/genCode", async (request, response) => {
 	}
 
 	editStorage("update", "storage", storage);
-
+	console.log("Code generated for " + account + ": " + code);
 	response.json({ code, account });
 });
 
-async function messageToDiscord(username, message) {
-	// Send message to recline channel using webhook for storage
-	const webhookUrl = process.env.CHAT_WEBHOOK;
-	const data = {
-		content: message,
-		username,
-	};
-	const options = {
-		method: "POST",
-		url: webhookUrl,
-		headers: {
-			"Content-Type": "application/json",
-		},
-		data: JSON.stringify(data),
-	};
-	try {
-		const response = await axios.request(options);
-		return response.data;
-	} catch (error) {
-		return error;
-	}
-}
-
 app.post("/sendMessage", async (request, response) => {
 	const account = request.get("account");
-	const code = request.get("code");
 	const { message } = request.body;
 	const { name } = structuredClone(await getStorage()).accounts[account];
-	const storage = structuredClone(await getStorage());
-	if (code !== storage.accounts[account].code) {
-		response.send("Invalid code");
-		return;
-	}
-
-	if (storage.accounts[account].secure !== true) {
-		response.send("Not authorized");
-		return;
+	if (!(await authorize(request))) {
+		return response.status(403).send("Not authorized");
 	}
 
 	try {
 		await messageToDiscord(name, message);
+		console.log("sent message: " + message + " for " + account);
 		response.send("Message sent");
 	} catch (error) {
 		console.error(error);
@@ -472,16 +473,9 @@ app.post("/deleteMessage", async (request, response) => {
 	const { id } = request.body;
 	// Need authorization
 	const account = request.get("account");
-	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
-	if (code !== storage.accounts[account].code) {
-		response.send("Invalid code");
-		return;
-	}
-
-	if (storage.accounts[account].secure !== true) {
-		response.send("Not authorized");
-		return;
+	if (!(await authorize(request))) {
+		return response.status(403).send("Not authorized");
 	}
 
 	if (
@@ -494,6 +488,7 @@ app.post("/deleteMessage", async (request, response) => {
 
 	try {
 		await deleteMessage(id);
+		console.log("deleted message: " + id + " for " + account);
 		response.send("Message deleted");
 	} catch (error) {
 		console.error(error);
@@ -501,47 +496,13 @@ app.post("/deleteMessage", async (request, response) => {
 	}
 });
 app.get("/fetchMessages", async (request, response) => {
-	const account = request.get("account");
-	const code = request.get("code");
 	const { continueId } = request.query;
-	const storage = structuredClone(await getStorage());
-	// Verify code
-	if (code !== storage.accounts[account].code) {
-		response.send("Invalid code");
-		return;
+	if (!(await authorize(request))) {
+		return response.status(403).send("Not authorized");
 	}
 
-	if (storage.accounts[account].secure !== true) {
-		response.send("Not authorized");
-		return;
-	}
-
-	// Fetch messages
 	const messages = await fetchMessages(continueId ?? null);
 	response.send(messages);
-});
-
-app.get("/mailToUser", async (request, response) => {
-	const account = request.get("account");
-	const code = request.get("code");
-	const storage = structuredClone(await getStorage());
-	if (code !== storage.accounts[account].code) {
-		response.status(403).send("Invalid code");
-		return;
-	}
-
-	if (structuredClone(await getStorage()).accounts[account].secure !== true) {
-		response.send("Not authorized");
-		return;
-	}
-
-	const user = Object.keys(storage.accounts).find((user) => user === account);
-	if (!user) {
-		response.status(404).send("User not found");
-		return;
-	}
-
-	response.send({ username: storage.accounts[user].name });
 });
 
 async function fetchInbox() {
@@ -570,18 +531,11 @@ async function fetchInbox() {
 }
 
 app.get("/checkSession", async (request, response) => {
-	const account = request.get("account");
-	const code = request.get("code");
-	const accountStorage = structuredClone(await getStorage()).accounts[account];
-	if (code === accountStorage.code) {
-		if (accountStorage.secure === true) {
-			response.send("authorized :>");
-		} else {
-			response.send("Not Authorized");
-		}
-	} else {
-		response.send("Invalid code");
+	if (!(await authorize(request))) {
+		return response.status(403).send("Not authorized");
 	}
+
+	response.send("authorized :>");
 });
 
 app.get("/check", async (request, response) => {
