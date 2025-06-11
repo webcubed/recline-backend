@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
-import { request } from "node:http";
+// eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -339,6 +339,7 @@ async function editStorage(operation, key, value) {
 	};
 	try {
 		await axios.request(options);
+		return true;
 	} catch (error) {
 		console.error(error);
 	}
@@ -347,7 +348,8 @@ async function editStorage(operation, key, value) {
 async function modifyUser(account, key, value) {
 	const storage = structuredClone(await getStorage());
 	storage.accounts[account][key] = value;
-	editStorage("update", "storage", storage);
+	await editStorage("update", "storage", storage);
+	return true;
 }
 
 async function messageToDiscord(username, message) {
@@ -459,10 +461,10 @@ app.get("/genCode", async (request, response) => {
 		secure: false,
 	};
 	// If "names" array exists, push name to array, Else, create array and push name to array
-	if (storage.names) {
-		storage.names.push(name);
+	if (storage.accounts[account].names) {
+		storage.accounts[account].names.push(name);
 	} else {
-		storage.names = [name];
+		storage.accounts[account].names = [name];
 	}
 
 	editStorage("update", "storage", storage);
@@ -616,10 +618,11 @@ app.get("/check", async (request, response) => {
 			parsedCode === accountCode
 		) {
 			console.log("matches nicely");
+			// SET TO SECURE????
+			await modifyUser(account, "secure", true);
 			// Approval
 			response.send("authorized :>");
-			// SET TO SECURE????
-			modifyUser(account, "secure", true);
+
 			// This should only be used to load the dashboard.
 			// Subsequent requests should also cross check the code.
 			return;
