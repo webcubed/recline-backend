@@ -380,7 +380,7 @@ const authorize = async (request) => {
 	const account = request.get("account");
 	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
-	console.log(account + " with ip " + request.clientIp + "is trying to access " + request.url);
+	console.log(account + " with ip " + request.clientIp + " is trying to access " + request.url);
 	if (code !== storage.accounts[account].code) {
 		console.log(account + " had invalid code");
 		return false;
