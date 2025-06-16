@@ -1,14 +1,14 @@
+// eslint-disable sort-imports
 import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
-// eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import ws from "ws";
-// eslint-disable-next-line sort-imports
+import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
 
@@ -283,6 +283,7 @@ server.listen(3001, () => {
 	console.log("WebSocket server listening on port 3001");
 });
 app.set("trust proxy", true);
+app.use(mw());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
@@ -379,7 +380,7 @@ const authorize = async (request) => {
 	const account = request.get("account");
 	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
-	console.log(account + " is trying to access " + request.url);
+	console.log(account + " with ip " + request.clientIp + "is trying to access " + request.url);
 	if (code !== storage.accounts[account].code) {
 		console.log(account + " had invalid code");
 		return false;

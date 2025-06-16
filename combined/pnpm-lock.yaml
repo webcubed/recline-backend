@@ -29,6 +29,9 @@ importers:
       recline-backend:
         specifier: 'file:'
         version: 'file:'
+      request-ip:
+        specifier: ^3.3.0
+        version: 3.3.0
       socket.io:
         specifier: ^4.8.1
         version: 4.8.1
@@ -2527,6 +2530,9 @@ packages:
   regjsparser@0.12.0:
     resolution: {integrity: sha512-cnE+y8bz4NhMjISKbgeVJtqNbtf5QpjZP+Bslo+UqkIt9QPnX9q095eiRRASJG1/tz6dlNr6Z5NsBiWYokp6EQ==}
     hasBin: true
+
+  request-ip@3.3.0:
+    resolution: {integrity: sha512-cA6Xh6e0fDBBBwH77SLJaJPBmD3nWVAcF9/XAcsrIHdjhFzFiB5aNQFytdjCGPezU3ROwrR11IddKAM08vohxA==}
 
   require-from-string@2.0.2:
     resolution: {integrity: sha512-Xf0nWe6RseziFMu+Ap9biiUbmplq6S9/p+7w7YXP/JBHhrUDDUhwa+vANyubuqfZWTveU//DYVGsDG7RKL/vEw==}
@@ -5719,6 +5725,7 @@ snapshots:
       express: 5.1.0
       socket.io: 4.8.1
       vercel: 42.1.1
+      ws: 8.18.2
       xml2js: 0.6.2
       xmlhttprequest: 1.8.0
     transitivePeerDependencies:
@@ -5759,6 +5766,8 @@ snapshots:
   regjsparser@0.12.0:
     dependencies:
       jsesc: 3.0.2
+
+  request-ip@3.3.0: {}
 
   require-from-string@2.0.2: {}
 
