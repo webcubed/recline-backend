@@ -559,14 +559,14 @@ app.get("/online", async (request, response) => {
 		const onlineMembers = fetchedMembers.filter(
 			(member) => member.presence?.status !== PresenceUpdateStatus.Offline
 		);
-		for (const member of onlineMembers) {
+		onlineMembers.each((member) => {
 			const account = mappings.find(
 				(data) => data.discordId === member.id
 			)?.account;
 			if (account) {
 				onlineUsers.push(account);
 			}
-		}
+		});
 	}
 
 	response.json(onlineUsers);
