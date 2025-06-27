@@ -590,7 +590,7 @@ app.get("/online", async (request, response) => {
 	const onlineUsers = [];
 	for (const client of wsServer.clients) {
 		if (client.readyState === ws.OPEN) {
-			onlineUsers.push(client.id);
+			onlineUsers.push({ email: client.id, status: "Online", discord: false });
 		}
 	}
 
@@ -606,7 +606,11 @@ app.get("/online", async (request, response) => {
 				(data) => data.discordId === member.id
 			)?.account;
 			if (account) {
-				onlineUsers.push(`${account} (Discord) (${member.presence?.status})`);
+				onlineUsers.push({
+					email: account,
+					status: member.presence?.status,
+					discord: true,
+				});
 			}
 		});
 	}
