@@ -39,6 +39,7 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 						data: {
 							email: mappings.find((user) => user.id === newPresence.userId),
 							status: newPresence.status,
+							discord: true,
 						},
 					})
 				);
@@ -49,10 +50,11 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 			if (client.readyState === WebSocket.OPEN) {
 				client.send(
 					JSON.stringify({
-						type: "connect",
+						type: "updatepresence",
 						data: {
 							email: mappings.find((user) => user.id === newPresence.userId),
 							status: newPresence.status,
+							discord: true,
 						},
 					})
 				);
