@@ -383,8 +383,7 @@ async function editStorage(operation, key, value) {
 		},
 	};
 	try {
-		const response = await axios.request(options);
-		return response.status === 200;
+		return axios.request(options);
 	} catch (error) {
 		console.error(error);
 		return false;
@@ -394,8 +393,14 @@ async function editStorage(operation, key, value) {
 async function modifyUser(account, key, value) {
 	const storage = structuredClone(await getStorage());
 	storage.accounts[account][key] = value;
-	await editStorage("update", "storage", storage);
-	return true;
+	const result = await editStorage("update", "storage", storage);
+	return new Promise((resolve, reject) => {
+		if (result) {
+			resolve(true);
+		} else {
+			reject(false);
+		}
+	});
 }
 
 async function messageToDiscord(username, message) {
@@ -425,24 +430,26 @@ const authorize = async (request) => {
 	const account = request.get("account");
 	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
-	console.log(
-		account +
-			" with ip " +
-			request.clientIp +
-			" is trying to access " +
-			request.url
-	);
-	if (code !== storage.accounts[account].code) {
-		console.log(account + " had invalid code");
-		return false;
-	}
+	return new Promise((resolve) => {
+		console.log(
+			account +
+				" with ip " +
+				request.clientIp +
+				" is trying to access " +
+				request.url
+		);
+		if (code !== storage.accounts[account].code) {
+			console.log(account + " had invalid code");
+			resolve(false);
+		}
 
-	if (storage.accounts[account].secure !== true) {
-		console.log(account + " was not secure");
-		return false;
-	}
+		if (storage.accounts[account].secure !== true) {
+			console.log(account + " was not secure");
+			resolve(false);
+		}
 
-	return true;
+		resolve(true);
+	});
 };
 
 app.get("/", (request, response) => {
