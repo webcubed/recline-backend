@@ -339,7 +339,7 @@ wsServer.on("connection", async (socket, request) => {
 			client.send(
 				JSON.stringify({
 					type: "connect",
-					data: { email: socket.id, status: "Online", discord: false },
+					data: { email: socket.id, status: "online", discord: false },
 				})
 			);
 		}
@@ -590,7 +590,7 @@ app.get("/online", async (request, response) => {
 	const onlineUsers = [];
 	for (const client of wsServer.clients) {
 		if (client.readyState === ws.OPEN) {
-			onlineUsers.push({ email: client.id, status: "Online", discord: false });
+			onlineUsers.push({ email: client.id, status: "online", discord: false });
 		}
 	}
 
@@ -599,7 +599,7 @@ app.get("/online", async (request, response) => {
 	if (guild) {
 		const fetchedMembers = await guild.members.fetch({ withPresences: true });
 		const onlineMembers = fetchedMembers.filter(
-			(member) => member.presence?.status !== PresenceUpdateStatus.Offline
+			(member) => member.presence && member.presence?.status !== PresenceUpdateStatus.Offline
 		);
 		onlineMembers.each((member) => {
 			const account = mappings.find(
