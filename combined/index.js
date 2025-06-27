@@ -394,11 +394,20 @@ async function modifyUser(account, key, value) {
 	const storage = structuredClone(await getStorage());
 	storage.accounts[account][key] = value;
 	const result = await editStorage("update", "storage", storage);
-	return new Promise((resolve, reject) => {
+	return new Promise((resolve) => {
 		if (result) {
 			resolve(true);
 		} else {
-			reject(false);
+			resolve(false);
+			console.log(
+				"Failed to modify user " +
+					account +
+					" (action: " +
+					key +
+					" => " +
+					value +
+					")"
+			);
 		}
 	});
 }
