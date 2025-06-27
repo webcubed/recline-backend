@@ -484,7 +484,21 @@ app.get("/genCode", async (request, response) => {
 	console.log("Code generated for " + account + ": " + code);
 	response.json({ code, account });
 });
+app.get("/online", async (request, response) => {
+	if (!(await authorize(request))) {
+		return response.status(403).send("Not authorized");
+	}
+	// Get all online users from the WebSocket server
 
+	const onlineUsers = [];
+	for (const client of wsServer.clients) {
+		if (client.readyState === ws.OPEN) {
+			onlineUsers.push(client.id);
+		}
+	}
+
+	response.json(onlineUsers);
+});
 app.post("/sendMessage", async (request, response) => {
 	const account = request.get("account");
 	const { message } = request.body;
@@ -632,7 +646,7 @@ app.get("/check", async (request, response) => {
 		) {
 			console.log("matches nicely");
 			// SET TO SECURE????
-			modifyUser(account, "secure", true);
+			await modifyUser(account, "secure", true);
 			// Approval
 			response.send("authorized :>");
 
