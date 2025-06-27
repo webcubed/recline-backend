@@ -11,6 +11,8 @@ import ws from "ws";
 import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
+import { type } from "node:os";
+import { url } from "node:inspector";
 
 /* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
@@ -46,6 +48,15 @@ client.on("messageCreate", async (message) => {
 			editedTimestamp: message.editedTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
+			embeds: message.embeds,
+			attachments: message.attachments.map((attachment) => ({
+				url: attachment.url,
+				name: attachment.name,
+				filename: attachment.filename,
+				type: attachment.contentType,
+				proxyURL: attachment.proxyURL,
+				id: attachment.id,
+			})),
 			author: message.author.username,
 			id: message.id,
 			email:
@@ -86,6 +97,15 @@ client.on("messageUpdate", async (oldMessage, newMessage) => {
 						author: message.author.username,
 						content: message.content,
 						cleanContent: message.cleanContent,
+						embeds: message.embeds,
+						attachments: message.attachments.map((attachment) => ({
+							url: attachment.url,
+							name: attachment.name,
+							filename: attachment.filename,
+							type: attachment.contentType,
+							proxyURL: attachment.proxyURL,
+							id: attachment.id,
+						})),
 						timestamp: message.createdTimestamp,
 						editedTimestamp: message.editedTimestamp,
 						email:
@@ -164,6 +184,15 @@ async function fetchMessages(continueId = null) {
 			editedTimestamp: message.editedTimestamp,
 			content: message.content,
 			cleanContent: message.cleanContent,
+			embeds: message.embeds,
+			attachments: message.attachments.map((attachment) => ({
+				url: attachment.url,
+				name: attachment.name,
+				filename: attachment.filename,
+				type: attachment.contentType,
+				proxyURL: attachment.proxyURL,
+				id: attachment.id,
+			})),
 			author: message.author.username,
 			id: message.id,
 			email:
@@ -198,6 +227,15 @@ async function fetchMessageInfo(id) {
 			author: message.author.username,
 			content: message.content,
 			cleanContent: message.cleanContent,
+			embeds: message.embeds,
+			attachments: message.attachments.map((attachment) => ({
+				url: attachment.url,
+				name: attachment.name,
+				filename: attachment.filename,
+				type: attachment.contentType,
+				proxyURL: attachment.proxyURL,
+				id: attachment.id,
+			})),
 			timestamp: message.createdTimestamp,
 			editedTimestamp: message.editedTimestamp,
 			email:
