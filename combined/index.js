@@ -1,4 +1,4 @@
-// eslint-disable sort-imports
+/* eslint-disable sort-imports */
 import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
@@ -11,8 +11,6 @@ import ws from "ws";
 import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
-import { type } from "node:os";
-import { url } from "node:inspector";
 
 /* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
@@ -538,7 +536,7 @@ app.get("/online", async (request, response) => {
 	// Also gather online members on discord
 	const guild = client.guilds.cache.get(process.env.GUILD_ID);
 	if (guild) {
-		const members = await guild.members.fetch();
+		const members = await guild.members.fetch({ withPresences: true });
 		const onlineMembers = members.filter(
 			(member) => member.presence?.status === "online"
 		);
