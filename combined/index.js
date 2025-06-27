@@ -334,7 +334,12 @@ wsServer.on("connection", async (socket, request) => {
 	// Broadcast
 	for (const client of wsServer.clients) {
 		if (client.readyState === WebSocket.OPEN) {
-			client.send(JSON.stringify({ type: "connect", data: socket.id }));
+			client.send(
+				JSON.stringify({
+					type: "connect",
+					data: { email: socket.id, status: "Online", discord: false },
+				})
+			);
 		}
 	}
 
@@ -347,7 +352,9 @@ wsServer.on("connection", async (socket, request) => {
 			// Broadcast
 			for (const client of wsServer.clients) {
 				if (client.readyState === WebSocket.OPEN) {
-					client.send(JSON.stringify({ type: "disconnect", data: socket.id }));
+					client.send(
+						JSON.stringify({ type: "disconnect", data: { email: socket.id } })
+					);
 				}
 			}
 		} else {
