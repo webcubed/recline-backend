@@ -29,7 +29,21 @@ client.once("ready", () => {
 	console.log("bot ready");
 });
 // On user presence update, send websocket message
-client.on("presenceUpdate", async (oldPresence, newPresence) => {});
+client.on("presenceUpdate", async (oldPresence, newPresence) => {
+	if (newPresence.status === PresenceUpdateStatus.Offline) {
+		for (const client of wsServer.clients) {
+			if (client.readyState === WebSocket.OPEN) {
+				client.send(JSON.stringify({ type: "disconnect", data: newPresence }));
+			}
+		}
+	} else {
+		for (const client of wsServer.clients) {
+			if (client.readyState === WebSocket.OPEN) {
+				client.send(JSON.stringify({ type: "connect", data: newPresence }));
+			}
+		}
+	}
+});
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
 	if (message.channelId !== process.env.CHANNEL_ID) {
@@ -560,7 +574,9 @@ app.get("/online", async (request, response) => {
 	if (guild) {
 		const fetchedMembers = await guild.members.fetch({ withPresences: true });
 		const onlineMembers = fetchedMembers.filter(
-			(member) => member.presence?.status !== PresenceUpdateStatus.Offline
+			(member) =>
+				member.presence?.status !== PresenceUpdateStatus.Offline ||
+				member.presence?.status !== PresenceUpdateStatus.Invisible
 		);
 		onlineMembers.each((member) => {
 			const account = mappings.find(
