@@ -574,8 +574,7 @@ app.get("/online", async (request, response) => {
 	if (guild) {
 		const fetchedMembers = await guild.members.fetch({ withPresences: true });
 		const onlineMembers = fetchedMembers.filter(
-			(member) =>
-				member.presence?.status !== PresenceUpdateStatus.Offline
+			(member) => member.presence?.status !== PresenceUpdateStatus.Offline
 		);
 		onlineMembers.each((member) => {
 			const account = mappings.find(
