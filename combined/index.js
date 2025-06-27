@@ -575,15 +575,16 @@ app.get("/online", async (request, response) => {
 		const fetchedMembers = await guild.members.fetch({ withPresences: true });
 		const onlineMembers = fetchedMembers.filter(
 			(member) =>
-				member.presence?.status !== PresenceUpdateStatus.Offline ||
-				member.presence?.status !== PresenceUpdateStatus.Invisible
+				member.presence?.status !== PresenceUpdateStatus.Offline
 		);
 		onlineMembers.each((member) => {
 			const account = mappings.find(
 				(data) => data.discordId === member.id
 			)?.account;
 			if (account) {
-				onlineUsers.push(account + " (Discord)");
+				onlineUsers.push(
+					account + " (Discord) (" + member.presence.status + ")"
+				);
 			}
 		});
 	}
