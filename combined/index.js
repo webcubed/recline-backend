@@ -2,7 +2,7 @@ import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
-import { request } from "node:http";
+// eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -243,6 +243,12 @@ wsServer.on("connection", async (socket, request) => {
 	const account = request.url.match(/\?email=(.*)&/)[1];
 	const code = request.url.match(/&code=(.*)/)[1];
 	const storage = structuredClone(await getStorage());
+	// If account or code don't match, close the socket and return to prevent errors
+	if (!storage.accounts[account]) {
+		socket.close();
+		return;
+	}
+
 	if (code !== storage.accounts[account].code) {
 		socket.close();
 		return;
