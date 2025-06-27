@@ -381,10 +381,11 @@ async function editStorage(operation, key, value) {
 		},
 	};
 	try {
-		await axios.request(options);
-		return true;
+		const response = await axios.request(options);
+		return response.status === 200;
 	} catch (error) {
 		console.error(error);
+		return false;
 	}
 }
 
