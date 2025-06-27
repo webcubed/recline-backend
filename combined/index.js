@@ -539,9 +539,9 @@ app.get("/online", async (request, response) => {
 	// Also gather online members on discord
 	const guild = client.guilds.cache.get(process.env.GUILD_ID);
 	if (guild) {
-		const members = await guild.members.fetch();
-		const onlineMembers = members.filter(
-			(member) => member.presence?.status === "online"
+		const fetchedMembers = await guild.members.fetch({ withPresences: true });
+		const onlineMembers = fetchedMembers.filter(
+			(member) => member.presence?.status === PresenceUpdateStatus.Online
 		);
 		for (const member of onlineMembers) {
 			const account = mappings.find(
