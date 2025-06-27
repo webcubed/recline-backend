@@ -581,9 +581,7 @@ app.get("/online", async (request, response) => {
 				(data) => data.discordId === member.id
 			)?.account;
 			if (account) {
-				onlineUsers.push(
-					account + " (Discord) (" + member.presence.status + ")"
-				);
+				onlineUsers.push(`${account} (Discord) (${member.presence?.status})`);
 			}
 		});
 	}
