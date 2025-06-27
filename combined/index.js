@@ -243,8 +243,8 @@ wsServer.on("connection", async (socket, request) => {
 	const account = request.url.match(/\?email=(.*)&/)[1];
 	const code = request.url.match(/&code=(.*)/)[1];
 	const storage = structuredClone(await getStorage());
-	// If account or code don't match, close the socket and return to prevent errors
-	if (!storage.accounts[account]) {
+	// If account or code aren't given, return to prevent errors
+	if (!account || !code) {
 		socket.close();
 		return;
 	}
@@ -386,7 +386,13 @@ const authorize = async (request) => {
 	const account = request.get("account");
 	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
-	console.log(account + " with ip " + request.clientIp + " is trying to access " + request.url);
+	console.log(
+		account +
+			" with ip " +
+			request.clientIp +
+			" is trying to access " +
+			request.url
+	);
 	if (code !== storage.accounts[account].code) {
 		console.log(account + " had invalid code");
 		return false;
