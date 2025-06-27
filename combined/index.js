@@ -540,7 +540,7 @@ app.get("/online", async (request, response) => {
 		const onlineMembers = members.filter(
 			(member) => member.presence?.status === "online"
 		);
-		for (const member of onlineMembers.values()) {
+		for (const member of onlineMembers) {
 			const account = mappings.find(
 				(data) => data.discordId === member.id
 			)?.account;
