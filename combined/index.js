@@ -1,14 +1,14 @@
+// eslint-disable sort-imports
 import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
-// eslint-disable-next-line sort-imports
 import { Client, GatewayIntentBits } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
 import ws from "ws";
-// eslint-disable-next-line sort-imports
+import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
 
@@ -289,6 +289,7 @@ server.listen(3001, () => {
 	console.log("WebSocket server listening on port 3001");
 });
 app.set("trust proxy", true);
+app.use(mw());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use((request, resource, next) => {
@@ -345,6 +346,7 @@ async function editStorage(operation, key, value) {
 	};
 	try {
 		await axios.request(options);
+		return true;
 	} catch (error) {
 		console.error(error);
 	}
@@ -353,7 +355,8 @@ async function editStorage(operation, key, value) {
 async function modifyUser(account, key, value) {
 	const storage = structuredClone(await getStorage());
 	storage.accounts[account][key] = value;
-	editStorage("update", "storage", storage);
+	await editStorage("update", "storage", storage);
+	return true;
 }
 
 async function messageToDiscord(username, message) {
@@ -383,7 +386,7 @@ const authorize = async (request) => {
 	const account = request.get("account");
 	const code = request.get("code");
 	const storage = structuredClone(await getStorage());
-	console.log(account + " is trying to access " + request.url);
+	console.log(account + " with ip " + request.clientIp + " is trying to access " + request.url);
 	if (code !== storage.accounts[account].code) {
 		console.log(account + " had invalid code");
 		return false;
@@ -465,10 +468,10 @@ app.get("/genCode", async (request, response) => {
 		secure: false,
 	};
 	// If "names" array exists, push name to array, Else, create array and push name to array
-	if (storage.names) {
-		storage.names.push(name);
+	if (storage.accounts[account].names) {
+		storage.accounts[account].names.push(name);
 	} else {
-		storage.names = [name];
+		storage.accounts[account].names = [name];
 	}
 
 	editStorage("update", "storage", storage);
@@ -622,10 +625,12 @@ app.get("/check", async (request, response) => {
 			parsedCode === accountCode
 		) {
 			console.log("matches nicely");
+			// SET TO SECURE????
+			// eslint-disable-next-line no-await-in-loop
+			await modifyUser(account, "secure", true);
 			// Approval
 			response.send("authorized :>");
-			// SET TO SECURE????
-			modifyUser(account, "secure", true);
+
 			// This should only be used to load the dashboard.
 			// Subsequent requests should also cross check the code.
 			return;
