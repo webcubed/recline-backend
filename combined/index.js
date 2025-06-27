@@ -3,7 +3,7 @@ import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
-import { Client, GatewayIntentBits } from "discord.js";
+import { Client, GatewayIntentBits, PresenceUpdateStatus } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
