@@ -539,13 +539,17 @@ app.get("/online", async (request, response) => {
 	const guild = client.guilds.cache.get(process.env.GUILD_ID);
 	if (guild) {
 		const members = await guild.members.fetch();
-		const onlineMembers = members
-			.filter((member) => member.presence?.status === "online")
-			.map(
-				(member) =>
-					mappings.find((data) => data.discordId === member.user.id)?.account
-			);
-		onlineUsers.push(...onlineMembers);
+		const onlineMembers = members.filter(
+			(member) => member.presence?.status === "online"
+		);
+		for (const member of onlineMembers.values()) {
+			const account = mappings.find(
+				(data) => data.discordId === member.id
+			)?.account;
+			if (account) {
+				onlineUsers.push(account);
+			}
+		}
 	}
 
 	response.json(onlineUsers);
