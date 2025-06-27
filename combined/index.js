@@ -37,7 +37,9 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 					JSON.stringify({
 						type: "disconnect",
 						data: {
-							email: mappings.find((user) => user.id === newPresence.userId),
+							email: mappings.find(
+								(user) => user.discordId === newPresence.userId
+							),
 							status: newPresence.status,
 							discord: true,
 						},
@@ -52,7 +54,9 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 					JSON.stringify({
 						type: "updatepresence",
 						data: {
-							email: mappings.find((user) => user.id === newPresence.userId),
+							email: mappings.find(
+								(user) => user.discordId === newPresence.userId
+							),
 							status: newPresence.status,
 							discord: true,
 						},
@@ -599,7 +603,9 @@ app.get("/online", async (request, response) => {
 	if (guild) {
 		const fetchedMembers = await guild.members.fetch({ withPresences: true });
 		const onlineMembers = fetchedMembers.filter(
-			(member) => member.presence && member.presence?.status !== PresenceUpdateStatus.Offline
+			(member) =>
+				member.presence &&
+				member.presence?.status !== PresenceUpdateStatus.Offline
 		);
 		onlineMembers.each((member) => {
 			const account = mappings.find(
