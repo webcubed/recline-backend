@@ -28,6 +28,8 @@ const client = new Client({
 client.once("ready", () => {
 	console.log("bot ready");
 });
+// On user presence update, send websocket message
+client.on("presenceUpdate", async (oldPresence, newPresence) => {});
 client.on("messageCreate", async (message) => {
 	// This is when a message gets sent from discord; discord -> client
 	if (message.channelId !== process.env.CHANNEL_ID) {
@@ -418,6 +420,7 @@ async function messageToDiscord(username, message) {
 	const data = {
 		content: message,
 		username,
+		allowed_mentions: { parse: ["users", "roles"] }, // eslint-disable-line camelcase
 	};
 	const options = {
 		method: "POST",
@@ -564,7 +567,7 @@ app.get("/online", async (request, response) => {
 				(data) => data.discordId === member.id
 			)?.account;
 			if (account) {
-				onlineUsers.push(account);
+				onlineUsers.push(account + " (Discord)");
 			}
 		});
 	}
