@@ -33,13 +33,29 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	if (newPresence.status === PresenceUpdateStatus.Offline) {
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
-				client.send(JSON.stringify({ type: "disconnect", data: newPresence }));
+				client.send(
+					JSON.stringify({
+						type: "disconnect",
+						data: {
+							email: mappings.find((user) => user.id === newPresence.userId),
+							status: newPresence.status,
+						},
+					})
+				);
 			}
 		}
 	} else {
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
-				client.send(JSON.stringify({ type: "connect", data: newPresence }));
+				client.send(
+					JSON.stringify({
+						type: "connect",
+						data: {
+							email: mappings.find((user) => user.id === newPresence.userId),
+							status: newPresence.status,
+						},
+					})
+				);
 			}
 		}
 	}
