@@ -632,8 +632,7 @@ app.get("/check", async (request, response) => {
 		) {
 			console.log("matches nicely");
 			// SET TO SECURE????
-			// eslint-disable-next-line no-await-in-loop
-			await modifyUser(account, "secure", true);
+			modifyUser(account, "secure", true);
 			// Approval
 			response.send("authorized :>");
 
