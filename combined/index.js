@@ -4,7 +4,12 @@ import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
 import { create } from "node:domain";
-import { Client, GatewayIntentBits, PresenceUpdateStatus } from "discord.js";
+import {
+	Client,
+	GatewayIntentBits,
+	PresenceUpdateStatus,
+	StageInstance,
+} from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
 import express from "express";
@@ -189,11 +194,12 @@ async function fetchMessages(continueId = null) {
 	}
 
 	/* --------------------------------- parsing -------------------------------- */
-	const unSortedMessages = rawMessages.map(async (rawData) => {
-		const message = Array.isArray(rawData) ? rawData[1] : rawData;
-		const parsedMessage = await createMessageStructure(message);
-		return parsedMessage;
-	});
+	const unSortedMessages = await Promise.all(
+		rawMessages.map(async (rawData) => {
+			const message = Array.isArray(rawData) ? rawData[1] : rawData;
+			return createMessageStructure(message);
+		})
+	);
 	const messages = unSortedMessages.sort((a, b) => {
 		const dateA = new Date(a.timestamp);
 		const dateB = new Date(b.timestamp);
