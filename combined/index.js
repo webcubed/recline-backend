@@ -3,6 +3,7 @@ import { Buffer } from "node:buffer";
 import { createServer } from "node:https";
 import fs from "node:fs";
 import process from "node:process";
+import { create } from "node:domain";
 import { Client, GatewayIntentBits, PresenceUpdateStatus } from "discord.js";
 import axios from "axios";
 import dotenv from "dotenv";
@@ -117,7 +118,7 @@ client.on("messageCreate", async (message) => {
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-		const newmsg = createMessageStructure(message);
+		const newmsg = await createMessageStructure(message);
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
 				client.send(JSON.stringify({ type: "message", data: newmsg }));
@@ -138,8 +139,9 @@ client.on("messageUpdate", async (oldMessage, newMessage) => {
 	if (oldMessage.channelId === process.env.CHANNEL_ID) {
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
-				const mappedMessages = [newMessage].map((message) => {
-					return createMessageStructure(message);
+				const mappedMessages = [newMessage].map(async (message) => {
+					const parsedNewMessage = await createMessageStructure(message);
+					return parsedNewMessage;
 				});
 				client.send(
 					JSON.stringify({
@@ -187,10 +189,10 @@ async function fetchMessages(continueId = null) {
 	}
 
 	/* --------------------------------- parsing -------------------------------- */
-	const unSortedMessages = rawMessages.map((rawData) => {
+	const unSortedMessages = rawMessages.map(async (rawData) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
-
-		return createMessageStructure(message);
+		const parsedMessage = await createMessageStructure(message);
+		return parsedMessage;
 	});
 	const messages = unSortedMessages.sort((a, b) => {
 		const dateA = new Date(a.timestamp);
@@ -203,9 +205,10 @@ async function fetchMessages(continueId = null) {
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawmsg = await channel.messages.fetch(id);
-	const mappedMessages = [rawmsg].map((rawData) => {
+	const mappedMessages = [rawmsg].map(async (rawData) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
-		return createMessageStructure(message);
+		const parsedMessage = await createMessageStructure(message);
+		return parsedMessage;
 	});
 	return mappedMessages;
 }
