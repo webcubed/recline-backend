@@ -439,9 +439,13 @@ app.get("/newVersion", (request, response) => {
 	const { newVersion } = request.body;
 	const code = request.get("code");
 	if (code !== process.env.SECRET_CODE) {
+		console.log(
+			"Unauthorized access attempt to /newVersion with ip " + request.clientIp
+		);
 		return response.status(403).send("Not authorized");
 	}
 
+	console.log("New version: " + newVersion);
 	// Broadcast to all websocket clients
 	for (const client of wsServer.clients) {
 		if (client.readyState === ws.OPEN) {
