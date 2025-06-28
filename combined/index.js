@@ -71,7 +71,6 @@ const client = new Client({
 client.once("ready", () => {
 	console.log("bot ready");
 });
-// On user presence update, send websocket message
 client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	if (newPresence.status === PresenceUpdateStatus.Offline) {
 		for (const client of wsServer.clients) {
@@ -110,12 +109,10 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	}
 });
 client.on("messageCreate", async (message) => {
-	// This is when a message gets sent from discord; discord -> client
 	if (message.channelId !== process.env.CHANNEL_ID) {
 		return;
 	}
 
-	// Read message, gather ID, send to client
 	if (message.channelId === process.env.CHANNEL_ID) {
 		console.log(
 			`%cMessage from: %c${message.author.username} %cMessage: ${message.content}`,
@@ -198,7 +195,6 @@ async function fetchMessages(continueId = null) {
 
 		return createMessageStructure(message);
 	});
-	// Sort based on timestamp
 	const messages = unSortedMessages.sort((a, b) => {
 		const dateA = new Date(a.timestamp);
 		const dateB = new Date(b.timestamp);
@@ -221,7 +217,6 @@ async function deleteMessage(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const message = await channel.messages.fetch(id);
 	await message.delete();
-	// Broadcast to people on the websocket that this message should be deleted
 
 	for (const client of wsServer.clients) {
 		if (client.readyState === WebSocket.OPEN) {
@@ -261,7 +256,6 @@ wsServer.on("connection", async (socket, request) => {
 
 	socket.id = account;
 	console.log("WebSocket client connected");
-	// Broadcast
 	for (const client of wsServer.clients) {
 		if (client.readyState === WebSocket.OPEN) {
 			client.send(
@@ -279,7 +273,6 @@ wsServer.on("connection", async (socket, request) => {
 	socket.on("close", () => {
 		if (socket.id) {
 			console.log(socket.id + " disconnected");
-			// Broadcast
 			for (const client of wsServer.clients) {
 				if (client.readyState === WebSocket.OPEN) {
 					client.send(
@@ -681,7 +674,6 @@ app.get("/check", async (request, response) => {
 			console.log("matches nicely");
 			// eslint-disable-next-line no-await-in-loop
 			await modifyUser(account, "secure", true);
-			// Approval
 			response.send("authorized :>");
 			return;
 		}
