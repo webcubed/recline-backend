@@ -14,6 +14,49 @@ import { parseString } from "xml2js";
 
 /* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
+/* -------------------------------------------------------------------------- */
+/*                                  functions                                 */
+/* -------------------------------------------------------------------------- */
+function discordToMail(id) {
+	const user = mappings.find((data) => data.discordId === id);
+	if (user) {
+		return user.account;
+	}
+
+	return null;
+}
+
+/* ---------------------------- message structure --------------------------- */
+async function createMessageStructure(discordMessageObject) {
+	const storage = structuredClone(await getStorage());
+	return {
+		timestamp: discordMessageObject.createdTimestamp,
+		editedTimestamp: discordMessageObject.editedTimestamp,
+		content: discordMessageObject.content,
+		cleanContent: discordMessageObject.cleanContent,
+		embeds: discordMessageObject.embeds,
+		attachments: discordMessageObject.attachments.map((attachment) => ({
+			url: attachment.url,
+			name: attachment.name,
+			filename: attachment.filename,
+			type: attachment.contentType,
+			proxyURL: attachment.proxyURL,
+			id: attachment.id,
+		})),
+		author: discordMessageObject.author.username,
+		id: discordMessageObject.id,
+		email:
+			discordToMail(discordMessageObject.author.id) ||
+			Object.keys(storage.accounts)[
+				Object.values(storage.accounts).indexOf(
+					Object.values(storage.accounts).find((data) =>
+						data.names.includes(discordMessageObject.author.username)
+					)
+				)
+			],
+	};
+}
+
 /* --------------------------- set up discord bot --------------------------- */
 const token = process.env.DISCORD_TOKEN;
 const client = new Client({
@@ -74,40 +117,13 @@ client.on("messageCreate", async (message) => {
 
 	// Read message, gather ID, send to client
 	if (message.channelId === process.env.CHANNEL_ID) {
-		const storage = structuredClone(await getStorage());
 		console.log(
 			`%cMessage from: %c${message.author.username} %cMessage: ${message.content}`,
 			"color: #8aadf4",
 			"color: #cad3f5",
 			"color: #c6a0f6"
 		);
-		const newmsg = {
-			timestamp: message.createdTimestamp,
-			editedTimestamp: message.editedTimestamp,
-			content: message.content,
-			cleanContent: message.cleanContent,
-			embeds: message.embeds,
-			attachments: message.attachments.map((attachment) => ({
-				url: attachment.url,
-				name: attachment.name,
-				filename: attachment.filename,
-				type: attachment.contentType,
-				proxyURL: attachment.proxyURL,
-				id: attachment.id,
-			})),
-			author: message.author.username,
-			id: message.id,
-			email:
-				mappings.find((data) => data.discordId === message.author.id)
-					?.account ||
-				Object.keys(storage.accounts)[
-					Object.values(storage.accounts).indexOf(
-						Object.values(storage.accounts).find((data) =>
-							data.names.includes(message.author.username)
-						)
-					)
-				],
-		};
+		const newmsg = createMessageStructure(message);
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
 				client.send(JSON.stringify({ type: "message", data: newmsg }));
@@ -125,38 +141,11 @@ client.on("messageDelete", async (message) => {
 	}
 });
 client.on("messageUpdate", async (oldMessage, newMessage) => {
-	const storage = structuredClone(await getStorage());
 	if (oldMessage.channelId === process.env.CHANNEL_ID) {
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
 				const mappedMessages = [newMessage].map((message) => {
-					return {
-						id: message.id,
-						author: message.author.username,
-						content: message.content,
-						cleanContent: message.cleanContent,
-						embeds: message.embeds,
-						attachments: message.attachments.map((attachment) => ({
-							url: attachment.url,
-							name: attachment.name,
-							filename: attachment.filename,
-							type: attachment.contentType,
-							proxyURL: attachment.proxyURL,
-							id: attachment.id,
-						})),
-						timestamp: message.createdTimestamp,
-						editedTimestamp: message.editedTimestamp,
-						email:
-							mappings.find((data) => data.discordId === message.author.id)
-								?.account ||
-							Object.keys(storage.accounts)[
-								Object.values(storage.accounts).indexOf(
-									Object.values(storage.accounts).find((data) =>
-										data.names.includes(message.author.username)
-									)
-								)
-							],
-					};
+					return createMessageStructure(message);
 				});
 				client.send(
 					JSON.stringify({
@@ -176,7 +165,6 @@ client.login(token);
 async function fetchMessages(continueId = null) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawMessages = [];
-	const storage = structuredClone(await getStorage());
 	let message;
 	if (continueId) {
 		message = await channel.messages.fetch(continueId);
@@ -205,45 +193,10 @@ async function fetchMessages(continueId = null) {
 	}
 
 	/* --------------------------------- parsing -------------------------------- */
-	// In the messages array, each item will be another array.
-	// In this 2nd array, the first item will be the message Id,
-	// And the second item will be the message information
-	// Including the timestamp, which we will use to sort these messages in order and
-	// Potentially append a date to the message
-	// We'll also get the content in the value "content" or "cleanContent"
-	// Cleancontent has mentions with display names instead of ids
-
-	// Create our own messages array
 	const unSortedMessages = rawMessages.map((rawData) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
 
-		return {
-			timestamp: message.createdTimestamp,
-			editedTimestamp: message.editedTimestamp,
-			content: message.content,
-			cleanContent: message.cleanContent,
-			embeds: message.embeds,
-			attachments: message.attachments.map((attachment) => ({
-				url: attachment.url,
-				name: attachment.name,
-				filename: attachment.filename,
-				type: attachment.contentType,
-				proxyURL: attachment.proxyURL,
-				id: attachment.id,
-			})),
-			author: message.author.username,
-			id: message.id,
-			email:
-				mappings.find((data) => data.discordId === message.author.id)
-					?.account ||
-				Object.keys(storage.accounts)[
-					Object.values(storage.accounts).indexOf(
-						Object.values(storage.accounts).find((data) =>
-							data.names.includes(message.author.username)
-						)
-					)
-				],
-		};
+		return createMessageStructure(message);
 	});
 	// Sort based on timestamp
 	const messages = unSortedMessages.sort((a, b) => {
@@ -257,36 +210,9 @@ async function fetchMessages(continueId = null) {
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawmsg = await channel.messages.fetch(id);
-	const storage = structuredClone(await getStorage());
 	const mappedMessages = [rawmsg].map((rawData) => {
 		const message = Array.isArray(rawData) ? rawData[1] : rawData;
-		return {
-			id: message.id,
-			author: message.author.username,
-			content: message.content,
-			cleanContent: message.cleanContent,
-			embeds: message.embeds,
-			attachments: message.attachments.map((attachment) => ({
-				url: attachment.url,
-				name: attachment.name,
-				filename: attachment.filename,
-				type: attachment.contentType,
-				proxyURL: attachment.proxyURL,
-				id: attachment.id,
-			})),
-			timestamp: message.createdTimestamp,
-			editedTimestamp: message.editedTimestamp,
-			email:
-				mappings.find((data) => data.discordId === message.author.id)
-					?.account ||
-				Object.keys(storage.accounts)[
-					Object.values(storage.accounts).indexOf(
-						Object.values(storage.accounts).find((data) =>
-							data.names.includes(message.author.username)
-						)
-					)
-				],
-		};
+		return createMessageStructure(message);
 	});
 	return mappedMessages;
 }
@@ -315,11 +241,9 @@ const server = createServer(
 );
 const wsServer = new ws.Server({ server });
 wsServer.on("connection", async (socket, request) => {
-	// Authenticate
 	const account = request.url.match(/\?email=(.*)&/)[1];
 	const code = request.url.match(/&code=(.*)/)[1];
 	const storage = structuredClone(await getStorage());
-	// If account or code aren't given, return to prevent errors
 	if (!account || !code) {
 		socket.close();
 		return;
@@ -406,10 +330,6 @@ async function getStorage() {
 }
 
 async function editStorage(operation, key, value) {
-	// Operation can be "create", "update", "upsert", "delete"
-	// Key is the name
-	// Value is the value to be assigned to key
-	// value = JSON.stringify(value);
 	const options = {
 		method: "PATCH",
 		url: `https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}/items`,
@@ -458,7 +378,6 @@ async function modifyUser(account, key, value) {
 }
 
 async function messageToDiscord(username, message) {
-	// Send message to recline channel using webhook for storage
 	const webhookUrl = process.env.CHAT_WEBHOOK;
 	const data = {
 		content: message,
@@ -532,14 +451,11 @@ app.get("/genCode", async (request, response) => {
 	const name = request.get("name");
 	const storage = structuredClone(await getStorage());
 
-	// Reject if account isn't whitelisted
 	if (!whitelistedEmails.has(account)) {
 		response.status(403).json({ error: "Account not whitelisted" });
 		return;
 	}
 
-	// Reject if name already exists
-	// Don't reject if trying to replace same account
 	for (const user of Object.keys(storage.accounts)) {
 		if (storage.accounts[user].name === name && user !== account) {
 			response.status(403).json({ error: "Name already exists" });
@@ -574,7 +490,6 @@ app.get("/genCode", async (request, response) => {
 		code,
 		secure: false,
 	};
-	// If "names" array exists, push name to array, Else, create array and push name to array
 	if (storage.accounts[account].names) {
 		storage.accounts[account].names.push(name);
 	} else {
@@ -589,7 +504,6 @@ app.get("/online", async (request, response) => {
 	if (!(await authorize(request))) {
 		return response.status(403).send("Not authorized");
 	}
-	// Get all online users from the WebSocket server
 
 	const onlineUsers = [];
 	for (const client of wsServer.clients) {
@@ -598,7 +512,6 @@ app.get("/online", async (request, response) => {
 		}
 	}
 
-	// Also gather online members on discord
 	const guild = client.guilds.cache.get(process.env.GUILD_ID);
 	if (guild) {
 		const fetchedMembers = await guild.members.fetch({ withPresences: true });
@@ -642,7 +555,6 @@ app.post("/sendMessage", async (request, response) => {
 });
 app.post("/deleteMessage", async (request, response) => {
 	const { id } = request.body;
-	// Need authorization
 	const account = request.get("account");
 	const storage = structuredClone(await getStorage());
 	if (!(await authorize(request))) {
@@ -712,7 +624,6 @@ app.get("/checkSession", async (request, response) => {
 app.get("/check", async (request, response) => {
 	const account = request.get("account");
 	const code = request.get("code");
-	// Cross checks the mail code and account with the generated code
 	const xmlData = await fetchInbox();
 	let parsedData;
 	parseString(xmlData, (error, result) => {
@@ -762,20 +673,16 @@ app.get("/check", async (request, response) => {
 		console.log(`Mail: ${authorMail}`);
 		console.log(`Code: ${parsedCode}`);
 
-		// If accounts match
 		if (
 			authorMail === account &&
 			parsedCode === code &&
 			parsedCode === accountCode
 		) {
 			console.log("matches nicely");
-			// SET TO SECURE????
+			// eslint-disable-next-line no-await-in-loop
 			await modifyUser(account, "secure", true);
 			// Approval
 			response.send("authorized :>");
-
-			// This should only be used to load the dashboard.
-			// Subsequent requests should also cross check the code.
 			return;
 		}
 	}
