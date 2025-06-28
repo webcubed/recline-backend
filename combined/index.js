@@ -435,6 +435,11 @@ app.get("/healthcheck", (request, response) => {
 });
 app.get("/newVersion", (request, response) => {
 	const { newVersion } = request.body;
+	const code = request.get("code");
+	if (code !== process.env.SECRET_CODE) {
+		return response.status(403).send("Not authorized");
+	}
+
 	// Broadcast to all websocket clients
 	for (const client of wsServer.clients) {
 		if (client.readyState === ws.OPEN) {
