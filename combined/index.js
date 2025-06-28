@@ -142,12 +142,14 @@ client.on("messageDelete", async (message) => {
 });
 client.on("messageUpdate", async (oldMessage, newMessage) => {
 	if (oldMessage.channelId === process.env.CHANNEL_ID) {
+		const mappedMessages = await Promise.all(
+			[newMessage].map(async (message) => {
+				const parsedNewMessage = await createMessageStructure(message);
+				return parsedNewMessage;
+			})
+		);
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
-				const mappedMessages = [newMessage].map(async (message) => {
-					const parsedNewMessage = await createMessageStructure(message);
-					return parsedNewMessage;
-				});
 				client.send(
 					JSON.stringify({
 						type: "update",
@@ -211,11 +213,12 @@ async function fetchMessages(continueId = null) {
 async function fetchMessageInfo(id) {
 	const channel = client.channels.cache.get(process.env.CHANNEL_ID);
 	const rawmsg = await channel.messages.fetch(id);
-	const mappedMessages = [rawmsg].map(async (rawData) => {
-		const message = Array.isArray(rawData) ? rawData[1] : rawData;
-		const parsedMessage = await createMessageStructure(message);
-		return parsedMessage;
-	});
+	const mappedMessages = await Promise.all(
+		[rawmsg].map(async (rawData) => {
+			const message = Array.isArray(rawData) ? rawData[1] : rawData;
+			return createMessageStructure(message);
+		})
+	);
 	return mappedMessages;
 }
 
