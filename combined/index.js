@@ -39,7 +39,7 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 						data: {
 							email: mappings.find(
 								(user) => user.discordId === newPresence.userId
-							),
+							)?.account,
 							status: newPresence.status,
 							discord: true,
 						},
