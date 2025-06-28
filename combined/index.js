@@ -12,7 +12,7 @@ import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
 
-const version = fs.readFileSync("./version.txt");
+const version = fs.readFileSync("./version.txt", "utf8");
 /* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
 /* -------------------------------------------------------------------------- */
@@ -432,6 +432,20 @@ app.get("/", (request, response) => {
 });
 app.get("/healthcheck", (request, response) => {
 	response.send("im alive");
+});
+app.get("/newVersion", (request, response) => {
+	const { newVersion } = request.body;
+	// Broadcast to all websocket clients
+	for (const client of wsServer.clients) {
+		if (client.readyState === ws.OPEN) {
+			client.send(
+				JSON.stringify({
+					type: "newVersion",
+					data: { version: newVersion.toString() },
+				})
+			);
+		}
+	}
 });
 app.get("/mappings", async (request, response) => {
 	const storage = structuredClone(await getStorage());
