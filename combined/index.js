@@ -12,6 +12,7 @@ import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
 
+const version = fs.readFileSync("./version.txt").slice(0, 7);
 /* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
 /* -------------------------------------------------------------------------- */
@@ -305,6 +306,7 @@ app.use((request, resource, next) => {
 		"Access-Control-Allow-Headers",
 		"Content-Type, account, code, name"
 	);
+	resource.header("version", version);
 	next();
 });
 /* -------------------------------- variables ------------------------------- */
