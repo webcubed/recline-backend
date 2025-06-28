@@ -435,6 +435,9 @@ app.get("/", (request, response) => {
 app.get("/healthcheck", (request, response) => {
 	response.send("im alive");
 });
+app.get("/currentVersion", (request, response) => {
+	response.send(version);
+});
 app.get("/newVersion", (request, response) => {
 	const { newVersion } = request.body;
 	const code = request.get("code");
