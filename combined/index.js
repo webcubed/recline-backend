@@ -438,7 +438,7 @@ app.get("/healthcheck", (request, response) => {
 app.get("/currentVersion", (request, response) => {
 	response.send(version);
 });
-app.get("/newVersion", (request, response) => {
+app.post("/newVersion", (request, response) => {
 	const { newVersion } = request.body;
 	const code = request.get("code");
 	if (code !== process.env.SECRET_CODE) {
