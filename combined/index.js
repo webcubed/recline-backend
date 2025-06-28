@@ -12,7 +12,9 @@ import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
 
-const version = fs.readFileSync("./version.txt", "utf8").replaceAll(/\r?\n|\r/g, "");
+const version = fs
+	.readFileSync("./version.txt", "utf8")
+	.replaceAll(/\r?\n|\r/g, "");
 /* ------------------------------ dotenv config ----------------------------- */
 dotenv.config();
 /* -------------------------------------------------------------------------- */
