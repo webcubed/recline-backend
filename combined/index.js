@@ -460,6 +460,8 @@ app.post("/newVersion", (request, response) => {
 			);
 		}
 	}
+
+	response.send("ok thanks " + newVersion);
 });
 app.get("/mappings", async (request, response) => {
 	const storage = structuredClone(await getStorage());
