@@ -79,10 +79,7 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 					JSON.stringify({
 						type: "disconnect",
 						data: {
-							email: mappings.find(
-								(user) => user.discordId === newPresence.userId
-							)?.account,
-							status: newPresence.status,
+							email: discordToMail(newPresence.userId),
 							discord: true,
 						},
 					})
@@ -276,7 +273,10 @@ wsServer.on("connection", async (socket, request) => {
 			for (const client of wsServer.clients) {
 				if (client.readyState === WebSocket.OPEN) {
 					client.send(
-						JSON.stringify({ type: "disconnect", data: { email: socket.id } })
+						JSON.stringify({
+							type: "disconnect",
+							data: { email: socket.id, discord: false },
+						})
 					);
 				}
 			}
