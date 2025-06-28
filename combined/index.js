@@ -304,7 +304,7 @@ app.use((request, resource, next) => {
 	resource.header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
 	resource.header(
 		"Access-Control-Allow-Headers",
-		"Content-Type, account, code, name"
+		"Content-Type, account, code, name, version"
 	);
 	resource.header("version", version);
 	next();
