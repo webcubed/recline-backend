@@ -445,6 +445,7 @@ app.post("/newVersion", (request, response) => {
 		console.log(
 			"Unauthorized access attempt to /newVersion with ip " + request.clientIp
 		);
+		console.log(code + " !== " + process.env.SECRET_CODE);
 		return response.status(403).send("Not authorized");
 	}
 
