@@ -49,14 +49,14 @@ importers:
         specifier: ^5.2.2
         version: 5.2.2(prettier@3.6.2)
       globals:
-        specifier: 16.1.0
-        version: 16.1.0
+        specifier: 16.2.0
+        version: 16.2.0
       prettier:
         specifier: ^3.6.2
         version: 3.6.2
       xo:
-        specifier: 1.0.0
-        version: 1.0.0(@types/eslint@8.56.12)(@typescript-eslint/utils@8.35.0(eslint@9.30.0)(typescript@4.9.5))(eslint-import-resolver-node@0.3.9)(typescript@4.9.5)
+        specifier: 1.1.1
+        version: 1.1.1(@types/eslint@8.56.12)(@typescript-eslint/utils@8.35.0(eslint@9.30.0)(typescript@4.9.5))(eslint-import-resolver-node@0.3.9)(typescript@4.9.5)
 
 packages:
 
@@ -1658,8 +1658,8 @@ packages:
     resolution: {integrity: sha512-7ACyT3wmyp3I61S4fG682L0VA2RGD9otkqGJIwNUMF1SWUombIIk+af1unuDYgMm082aHYwD+mzJvv9Iu8dsgg==}
     engines: {node: '>=18'}
 
-  globals@16.1.0:
-    resolution: {integrity: sha512-aibexHNbb/jiUSObBgpHLj+sIuUmJnYcgXBlrfsiDZ9rt4aF2TFRbyLgZ2iFQuVZ1K5Mx3FVkbKRSgKrbK3K2g==}
+  globals@16.2.0:
+    resolution: {integrity: sha512-O+7l9tPdHCU320IigZZPj5zmRCFG9xHmx9cU8FqU2Rp+JN714seHV+2S9+JslCpY4gJwU2vOGox0wzgae/MCEg==}
     engines: {node: '>=18'}
 
   globalthis@1.0.4:
@@ -3003,8 +3003,8 @@ packages:
     resolution: {integrity: sha512-58Im/U0mlVBLM38NdZjHyhuMtCqa61469k2YP/AaPbvCoV9aQGUpbJBj1QRm2ytRiVQBD/fsw7L2bJGDVQswBA==}
     engines: {node: '>=0.4.0'}
 
-  xo@1.0.0:
-    resolution: {integrity: sha512-KwGA+L48Am+EzGrThUH4z4hzJt5J9O0nX2dEvV28owfpUFb3OZyLM2VG1qdxoy073mwKoDWJ7BcKFHrUwNvbzg==}
+  xo@1.1.1:
+    resolution: {integrity: sha512-CMuUby6vSP+OQyOQRbhqWWIfc1dg06M6MFdtIQh/EMNE+ONcBzDhzNnbtDt/qD9gGRdg5qZ9YK16BBGwOfA2BQ==}
     engines: {node: '>=20.17'}
     hasBin: true
     peerDependencies:
@@ -4590,7 +4590,7 @@ snapshots:
       eslint: 9.30.0
       esquery: 1.6.0
       find-up-simple: 1.0.1
-      globals: 16.1.0
+      globals: 16.2.0
       indent-string: 5.0.0
       is-builtin-module: 5.0.0
       jsesc: 3.1.0
@@ -4915,7 +4915,7 @@ snapshots:
 
   globals@15.15.0: {}
 
-  globals@16.1.0: {}
+  globals@16.2.0: {}
 
   globalthis@1.0.4:
     dependencies:
@@ -6312,7 +6312,7 @@ snapshots:
 
   xmlhttprequest@1.8.0: {}
 
-  xo@1.0.0(@types/eslint@8.56.12)(@typescript-eslint/utils@8.35.0(eslint@9.30.0)(typescript@4.9.5))(eslint-import-resolver-node@0.3.9)(typescript@4.9.5):
+  xo@1.1.1(@types/eslint@8.56.12)(@typescript-eslint/utils@8.35.0(eslint@9.30.0)(typescript@4.9.5))(eslint-import-resolver-node@0.3.9)(typescript@4.9.5):
     dependencies:
       '@eslint-community/eslint-plugin-eslint-comments': 4.5.0(eslint@9.30.0)
       '@sindresorhus/tsconfig': 7.0.0
@@ -6336,7 +6336,7 @@ snapshots:
       find-cache-directory: 6.0.0
       get-stdin: 9.0.0
       get-tsconfig: 4.10.1
-      globals: 16.1.0
+      globals: 16.2.0
       globby: 14.1.0
       meow: 13.2.0
       micromatch: 4.0.8
