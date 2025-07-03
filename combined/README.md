@@ -2,6 +2,7 @@
 
 ---
 
+[![wakatime](https://wakatime.com/badge/user/018ea19c-a583-4fbd-94f0-f7a52ff6cbc9/project/723a5994-8cad-469d-8d62-93ed7b3b8186.svg?style=for-the-badge)](https://wakatime.com/badge/user/018ea19c-a583-4fbd-94f0-f7a52ff6cbc9/project/723a5994-8cad-469d-8d62-93ed7b3b8186?style=for-the-badge)
 this is the very cool repo for the inner workings of the chat on my website intended for school.
 this version is intended to not run on vercel, run 24/7
 
