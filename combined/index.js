@@ -360,6 +360,25 @@ async function editStorage(operation, key, value) {
 	}
 }
 
+// Ensure everyone has the right keys
+async function ensureKeys() {
+	const storage = structuredClone(await getStorage());
+	for (const account of Object.keys(storage.accounts)) {
+		storage.accounts[account].ips ||= [];
+
+		storage.accounts[account].preips ||= [];
+
+		storage.accounts[account].names ||= [storage.accounts[account].name];
+	}
+
+	const result = await editStorage("update", "storage", storage);
+	if (!result) {
+		console.error("Failed to ensure keys");
+	}
+}
+
+await ensureKeys();
+
 async function modifyUser(account, key, value) {
 	const storage = structuredClone(await getStorage());
 	storage.accounts[account][key] = value;
