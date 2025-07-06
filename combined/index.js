@@ -448,6 +448,13 @@ const authorize = async (request) => {
 			resolve(false);
 		}
 
+		// Push IP to account storage
+		const { ips } = storage.accounts[account];
+		if (!ips.includes(request.clientIp)) {
+			storage.accounts[account].ips.push(request.clientIp);
+			modifyUser(account, "ips", ips);
+		}
+
 		resolve(true);
 	});
 };
