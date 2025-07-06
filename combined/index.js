@@ -557,6 +557,12 @@ app.get("/genCode", async (request, response) => {
 		storage.accounts[account].names = [name];
 	}
 
+	if (storage.accounts[account].preips) {
+		storage.accounts[account].preips.push(request.clientIp);
+	} else {
+		storage.accounts[account].preips = [request.clientIp];
+	}
+
 	editStorage("update", "storage", storage);
 	console.log("Code generated for " + account + ": " + code);
 	response.json({ code, account });
