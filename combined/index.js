@@ -445,6 +445,7 @@ async function messageToBackend(message) {
 	}
 }
 
+await messageToBackend(`Server updated to revision ${version.slice(0, 7)}`);
 const authorize = async (request) => {
 	const account = request.get("account");
 	const code = request.get("code");
