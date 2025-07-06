@@ -262,6 +262,7 @@ wsServer.on("connection", async (socket, request) => {
 
 	socket.id = account;
 	console.log("WebSocket client connected");
+	messageToBackend(`${socket.id} connected`);
 	for (const client of wsServer.clients) {
 		if (client.readyState === WebSocket.OPEN) {
 			client.send(
@@ -279,6 +280,7 @@ wsServer.on("connection", async (socket, request) => {
 	socket.on("close", () => {
 		if (socket.id) {
 			console.log(socket.id + " disconnected");
+			messageToBackend(`${socket.id} disconnected`);
 			for (const client of wsServer.clients) {
 				if (client.readyState === WebSocket.OPEN) {
 					client.send(
@@ -386,6 +388,27 @@ async function messageToDiscord(username, message) {
 		content: message,
 		username,
 		allowed_mentions: { parse: ["users", "roles"] }, // eslint-disable-line camelcase
+	};
+	const options = {
+		method: "POST",
+		url: webhookUrl,
+		headers: {
+			"Content-Type": "application/json",
+		},
+		data: JSON.stringify(data),
+	};
+	try {
+		const response = await axios.request(options);
+		return response.data;
+	} catch (error) {
+		return error;
+	}
+}
+
+async function messageToBackend(message) {
+	const webhookUrl = process.env.API_WEBHOOK;
+	const data = {
+		content: message,
 	};
 	const options = {
 		method: "POST",
