@@ -1,24 +1,30 @@
 <?xml version="1.0" encoding="UTF-8"?>
 	<svg width="808" height="376" viewBox="0 0 808 376" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<style type="text/css"><![CDATA[
+				
+				text, tspan { font-family: 'Lexend'; }
+			]]></style>
+		</defs>
 		<rect width="100%" height="100%" fill="#24273a"/>
-		<text x="24" y="44" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="30" font-weight="800" fill="#b7bdf8">Homework — chan 9/10</text>
+		<text x="24" y="44" font-family="Lexend" font-size="30" font-weight="800" fill="#b7bdf8">Homework — chan 9/10</text>
 		
 		<g transform="translate(24, 100)">
 			<rect x="0" y="-32" rx="10" ry="10" width="760" height="64" fill="#363a4f"/>
-			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="18" fill="#a5adcb">Read Chapter 5</text>
-			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="16" fill="#8aadf4"><tspan>11/4/2025</tspan></text>
-			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="14" fill="#b8c0e0"><tspan>in 2 days</tspan></text>
+			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="18" fill="#a5adcb">Read Chapter 5</text>
+			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="16" fill="#8aadf4"><tspan>11/04/2025</tspan></text>
+			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="14" fill="#b8c0e0"><tspan>in 2 days</tspan></text>
 		</g>
 		<g transform="translate(24, 184)">
 			<rect x="0" y="-32" rx="10" ry="10" width="760" height="64" fill="#363a4f"/>
-			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="18" fill="#a5adcb">Worksheet #3</text>
-			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="16" fill="#8aadf4"><tspan>11/5/2025</tspan></text>
-			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="14" fill="#b8c0e0"><tspan>in 3 days</tspan></text>
+			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="18" fill="#a5adcb">Worksheet #3</text>
+			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="16" fill="#8aadf4"><tspan>11/05/2025</tspan></text>
+			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="14" fill="#b8c0e0"><tspan>in 3 days</tspan></text>
 		</g>
 		<g transform="translate(24, 268)">
 			<rect x="0" y="-32" rx="10" ry="10" width="760" height="64" fill="#363a4f"/>
-			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="18" fill="#a5adcb">Essay draft</text>
-			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="16" fill="#8aadf4"><tspan>11/6/2025</tspan></text>
-			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="14" fill="#b8c0e0"><tspan>in 4 days</tspan></text>
+			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="18" fill="#a5adcb">Essay draft</text>
+			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="16" fill="#8aadf4"><tspan>11/06/2025</tspan></text>
+			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="14" fill="#b8c0e0"><tspan>in 4 days</tspan></text>
 		</g>
 	</svg>

@@ -102,13 +102,19 @@ export async function renderImage({ events, headerClass }) {
 	// Try png otherwise just do svg
 	try {
 		const { Resvg } = await import("@resvg/resvg-js");
-		// Register Lexend font with renderer to ensure usage regardless of @font-face handling
+		// Register Lexend font with renderer only. No system fallbacks.
 		const lexendPath = getLexendTtfPath();
+		const hasLexend = lexendPath && fs.existsSync(lexendPath);
+		if (!hasLexend) {
+			// Don't attempt PNG if the required font isn't available; return SVG instead.
+			throw new Error("Lexend TTF not available for PNG rendering");
+		}
+
 		const resvg = new Resvg(svg, {
 			fitTo: { mode: "width", value: width },
 			font: {
 				loadSystemFonts: false,
-				fontFiles: lexendPath ? [lexendPath] : [],
+				fontFiles: [lexendPath],
 				defaultFontFamily: "Lexend",
 				sansSerifFamily: "Lexend",
 			},
