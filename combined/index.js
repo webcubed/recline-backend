@@ -16,6 +16,7 @@ import {
 	handleSlashInteraction,
 } from "./commands/slash-commands.js";
 import { registerSlashCommands } from "./commands/register.js";
+import { refreshImagesDaily } from "./commands/homework-tracker.js";
 
 const version = fs
 	.readFileSync("./version.txt", "utf8")
@@ -90,6 +91,27 @@ client.once("ready", async () => {
 	} catch (error) {
 		console.error("Failed to register slash commands", error);
 	}
+
+	// Schedule daily image refresh near 00:05 local time
+	const scheduleDaily = () => {
+		const now = new Date();
+		const next = new Date(now);
+		next.setHours(0, 5, 0, 0);
+		if (next <= now) next.setDate(next.getDate() + 1);
+		const delay = next.getTime() - now.getTime();
+		setTimeout(async () => {
+			await refreshImagesDaily(client);
+			// Then run every 24h
+			setInterval(
+				() => {
+					refreshImagesDaily(client);
+				},
+				24 * 60 * 60 * 1000
+			);
+		}, delay);
+	};
+
+	scheduleDaily();
 });
 client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	if (newPresence.status === PresenceUpdateStatus.Offline) {

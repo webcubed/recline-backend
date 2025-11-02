@@ -10,8 +10,9 @@ import {
 	TextInputBuilder,
 	TextInputStyle,
 } from "discord.js";
-import { SCHEDULE_TYPES, getStartTimeForPeriod } from "./bell-schedule.js";
 import { renderEmbed, renderImage, renderText } from "./homework-renderers.js";
+import { getStartTimeForPeriod } from "./bell-schedule.js";
+import { trackImagePost } from "./homework-tracker.js";
 
 export const sendHomeworkCommand = new SlashCommandBuilder()
 	.setName("sendhomework")
@@ -64,12 +65,7 @@ const DAY_OPTIONS = [
 	{ label: "B Day", value: "B" },
 ];
 
-const SCHEDULE_OPTIONS = [
-	{ label: "Regular", value: SCHEDULE_TYPES.REGULAR },
-	{ label: "Conference", value: SCHEDULE_TYPES.CONFERENCE },
-];
-
-// Period options removed; times are inferred from class + A/B day + schedule
+// Always assume conference schedule; no schedule selection
 
 function buildModal(customId = "hw_modal") {
 	const modal = new ModalBuilder()
@@ -101,37 +97,24 @@ function buildModal(customId = "hw_modal") {
 	);
 }
 
-function buildSelectionRows({
-	classValue = "chan 9/10",
-	dayValue = "A",
-	scheduleValue = SCHEDULE_TYPES.REGULAR,
-}) {
+function buildInitialClassRow({ classValue = "chan 9/10" }) {
 	const classSelect = new StringSelectMenuBuilder()
-		.setCustomId("hw_class")
+		.setCustomId("hw_session_class")
 		.setMinValues(1)
 		.setMaxValues(1)
 		.addOptions(CLASS_OPTIONS)
 		.setPlaceholder(classLabelFor(classValue));
+	return [new ActionRowBuilder().addComponents(classSelect)];
+}
 
+function buildDayRow({ dayValue = "A" }) {
 	const daySelect = new StringSelectMenuBuilder()
 		.setCustomId("hw_day")
 		.setMinValues(1)
 		.setMaxValues(1)
 		.addOptions(DAY_OPTIONS)
 		.setPlaceholder(dayValue);
-
-	const scheduleSelect = new StringSelectMenuBuilder()
-		.setCustomId("hw_schedule")
-		.setMinValues(1)
-		.setMaxValues(1)
-		.addOptions(SCHEDULE_OPTIONS)
-		.setPlaceholder(scheduleValue);
-
-	return [
-		new ActionRowBuilder().addComponents(classSelect),
-		new ActionRowBuilder().addComponents(daySelect),
-		new ActionRowBuilder().addComponents(scheduleSelect),
-	];
+	return [new ActionRowBuilder().addComponents(daySelect)];
 }
 
 function buildConfirmRows() {
@@ -224,14 +207,14 @@ async function handleModalSubmit(interaction) {
 		title,
 		due,
 		time,
-		classKey: "chan 9/10",
+		classKey: session.classKey || "chan 9/10",
 		day: "A",
 	};
 
 	await interaction.reply({
-		content: `Event: **${title}**\nDue: ${due}${time ? ` at ${time}` : ""}\nPick class/day/schedule:`,
+		content: `Event: **${title}**\nDue: ${due}${time ? ` at ${time}` : ""}\nPick day:`,
 		ephemeral: true,
-		components: [...buildSelectionRows({}), ...buildConfirmRows()],
+		components: [...buildDayRow({}), ...buildConfirmRows()],
 	});
 }
 
@@ -244,19 +227,20 @@ async function handleSelectUpdate(interaction) {
 		});
 
 	const value = interaction.values[0];
-	if (interaction.customId === "hw_class") session.pending.classKey = value;
+	if (interaction.customId === "hw_session_class") {
+		session.classKey = value;
+		// Open the event details modal immediately after choosing class
+		await interaction.showModal(buildModal());
+		return;
+	}
+
 	if (interaction.customId === "hw_day") session.pending.day = value;
-	if (interaction.customId === "hw_schedule") session.scheduleType = value;
 
 	// Rebuild the selection rows to reflect current selections
 	await interaction.update({
 		content: interaction.message.content,
 		components: [
-			...buildSelectionRows({
-				classValue: session.pending.classKey,
-				dayValue: session.pending.day,
-				scheduleValue: session.scheduleType,
-			}),
+			...buildDayRow({ dayValue: session.pending.day }),
 			...buildConfirmRows(),
 		],
 	});
@@ -283,7 +267,7 @@ async function handleButtonPress(interaction) {
 	}
 
 	if (customId === "hw_save") {
-		const event = computeEvent(session.pending, session.scheduleType);
+		const event = computeEvent(session.pending);
 		session.events.push(event);
 		session.pending = {};
 		await interaction.update({
@@ -349,16 +333,21 @@ async function startSession(interaction) {
 		channelId: target.id,
 		events: [],
 		pending: {},
-		scheduleType: SCHEDULE_TYPES.REGULAR,
+		classKey: undefined,
 	});
-	await interaction.showModal(buildModal());
+	// First ask for the class/section for the whole session
+	await interaction.reply({
+		content: "Choose class/section for this homework post:",
+		ephemeral: true,
+		components: buildInitialClassRow({}),
+	});
 }
 
-function computeEvent(pending, scheduleType) {
+function computeEvent(pending) {
 	const { title, due, time, classKey, day } = pending;
 	const date = parseMonthDayToDate(due);
 
-	let timeString = time && time.trim() !== "" ? time.trim() : null;
+	let timeString = normalizeTime(time);
 	if (!timeString) {
 		const selectedPeriod = defaultPeriodFor({
 			classKey,
@@ -368,13 +357,54 @@ function computeEvent(pending, scheduleType) {
 
 		timeString = getStartTimeForPeriod({
 			period: selectedPeriod,
-			scheduleType,
 		});
 	}
 
 	const [hh, mm, ss] = timeString.split(":").map((n) => Number.parseInt(n, 10));
 	date.setHours(hh, mm, ss, 0);
 	return { title, classKey, dueTimestamp: date.getTime() };
+}
+
+function normalizeTime(input) {
+	if (!input) return null;
+	const s = String(input).trim().toLowerCase();
+	if (!s) return null;
+	// Try HH:MM[:SS] 24h
+	let m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/u);
+	if (m) {
+		const hh = Number.parseInt(m[1], 10);
+		const mm = Number.parseInt(m[2], 10);
+		const ss = m[3] ? Number.parseInt(m[3], 10) : 0;
+		if (hh <= 23 && mm <= 59 && ss <= 59)
+			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+	}
+
+	// Try HHMM 24h
+	m = s.match(/^(\d{3,4})$/u);
+	if (m) {
+		const v = m[1];
+		const hh = Number.parseInt(
+			v.length === 3 ? v.slice(0, 1) : v.slice(0, 2),
+			10
+		);
+		const mm = Number.parseInt(v.length === 3 ? v.slice(1) : v.slice(2), 10);
+		if (hh <= 23 && mm <= 59)
+			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
+	}
+
+	// Try h[:mm] am/pm
+	m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(a|p)\.?m\.?$/u);
+	if (m) {
+		let hh = Number.parseInt(m[1], 10);
+		const mm = m[2] ? Number.parseInt(m[2], 10) : 0;
+		const pm = m[3] === "p";
+		if (hh === 12) hh = 0;
+		if (pm) hh += 12;
+		if (hh <= 23 && mm <= 59)
+			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
+	}
+
+	return null;
 }
 
 function defaultPeriodFor({ classKey, day, fallback }) {
@@ -455,11 +485,7 @@ async function finalizeAndPost(interaction, session) {
 		await respond({
 			content: "No events saved yet. Add at least one, or cancel.",
 			components: [
-				...buildSelectionRows({
-					classValue: session.pending?.classKey ?? "chan 9/10",
-					dayValue: session.pending?.day ?? "A",
-					scheduleValue: session.scheduleType,
-				}),
+				...buildDayRow({ dayValue: session.pending?.day ?? "A" }),
 				...buildConfirmRows(),
 			],
 		});
@@ -469,9 +495,21 @@ async function finalizeAndPost(interaction, session) {
 	const payload = await buildFinalPayload({
 		format: session.format,
 		events: session.events,
-		headerClass: classLabelFor(mostLikelyClass(session.events)),
+		headerClass: classLabelFor(
+			session.classKey || mostLikelyClass(session.events)
+		),
 	});
-	await targetChannel.send(payload);
+	const sent = await targetChannel.send(payload);
+	if (session.format === "image") {
+		// Track for daily updates
+		await trackImagePost({
+			channelId: sent.channelId,
+			messageId: sent.id,
+			events: session.events,
+			classKey: session.classKey || mostLikelyClass(session.events),
+		});
+	}
+
 	sessions.delete(interaction.user.id);
 	await respond({ content: "Posted homework.", components: [] });
 }

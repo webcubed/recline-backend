@@ -1,21 +1,3 @@
-export const SCHEDULE_TYPES = {
-	REGULAR: "regular",
-	CONFERENCE: "conference",
-};
-
-export const REGULAR_SCHEDULE = {
-	1: "08:00:00",
-	2: "08:45:00",
-	3: "09:30:00",
-	4: "10:20:00",
-	5: "11:06:00",
-	6: "11:52:00",
-	7: "12:38:00",
-	8: "13:24:00",
-	9: "14:10:00",
-	10: "14:56:00",
-};
-
 export const CONFERENCE_SCHEDULE = {
 	1: "08:00:00",
 	2: "08:50:00",
@@ -29,13 +11,7 @@ export const CONFERENCE_SCHEDULE = {
 	10: "15:30:00",
 };
 
-export function getStartTimeForPeriod({
-	period,
-	scheduleType = SCHEDULE_TYPES.REGULAR,
-}) {
-	const table =
-		scheduleType === SCHEDULE_TYPES.CONFERENCE
-			? CONFERENCE_SCHEDULE
-			: REGULAR_SCHEDULE;
-	return table[period];
+// Always use the conference schedule for start times
+export function getStartTimeForPeriod({ period }) {
+	return CONFERENCE_SCHEDULE[period];
 }

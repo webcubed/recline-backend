@@ -39,23 +39,13 @@ export async function renderImage({ events, headerClass }) {
 	const rel = (ts) => {
 		const diff = ts - Date.now();
 		const future = diff >= 0;
-		const abs = Math.abs(diff);
-		const mins = Math.round(abs / 60_000);
-		if (mins < 60) {
-			return future ? `in ${mins} min` : `${mins} min ago`;
-		}
-
+		if (!future) return "due";
+		const mins = Math.round(diff / 60_000);
+		if (mins < 60) return `in ${mins} min`;
 		const hrs = Math.round(mins / 60);
-		if (hrs < 24) {
-			return future
-				? `in ${hrs} hr${hrs === 1 ? "" : "s"}`
-				: `${hrs} hr${hrs === 1 ? "" : "s"} ago`;
-		}
-
+		if (hrs < 24) return `in ${hrs} hr${hrs === 1 ? "" : "s"}`;
 		const days = Math.round(hrs / 24);
-		return future
-			? `in ${days} day${days === 1 ? "" : "s"}`
-			: `${days} day${days === 1 ? "" : "s"} ago`;
+		return `in ${days} day${days === 1 ? "" : "s"}`;
 	};
 
 	const rowHeight = 84;
