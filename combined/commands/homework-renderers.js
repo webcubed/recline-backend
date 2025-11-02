@@ -102,7 +102,17 @@ export async function renderImage({ events, headerClass }) {
 	// Try png otherwise just do svg
 	try {
 		const { Resvg } = await import("@resvg/resvg-js");
-		const resvg = new Resvg(svg, { fitTo: { mode: "width", value: width } });
+		// Register Lexend font with renderer to ensure usage regardless of @font-face handling
+		const lexendPath = getLexendTtfPath();
+		const resvg = new Resvg(svg, {
+			fitTo: { mode: "width", value: width },
+			font: {
+				loadSystemFonts: false,
+				fontFiles: lexendPath ? [lexendPath] : [],
+				defaultFontFamily: "Lexend",
+				sansSerifFamily: "Lexend",
+			},
+		});
 		const pngData = resvg.render();
 		const pngBuffer = pngData.asPng();
 		const attachment = new AttachmentBuilder(pngBuffer, {
@@ -123,19 +133,9 @@ let cachedLexendCss;
 async function getEmbeddedLexendCss() {
 	if (cachedLexendCss) return cachedLexendCss;
 	try {
-		// Prefer explicit env var path; otherwise resolve bundled TTF path
-		const envPath = process.env.LEXEND_TTF_PATH;
-		let ttfPath = envPath;
-		if (!ttfPath) {
-			const __filename = fileURLToPath(import.meta.url);
-			const __dirname = path.dirname(__filename);
-			ttfPath = path.resolve(
-				__dirname,
-				"../fonts/lexend/Lexend[HEXP,wght].ttf"
-			);
-		}
+		const ttfPath = getLexendTtfPath();
 
-		if (!fs.existsSync(ttfPath)) {
+		if (!ttfPath || !fs.existsSync(ttfPath)) {
 			cachedLexendCss = "";
 			return cachedLexendCss;
 		}
@@ -149,4 +149,17 @@ async function getEmbeddedLexendCss() {
 		cachedLexendCss = "";
 		return cachedLexendCss;
 	}
+}
+
+// Resolve the path to the bundled Lexend variable TTF or env override
+function getLexendTtfPath() {
+	const envPath = process.env.LEXEND_TTF_PATH;
+	let ttfPath = envPath;
+	if (!ttfPath) {
+		const __filename = fileURLToPath(import.meta.url);
+		const __dirname = path.dirname(__filename);
+		ttfPath = path.resolve(__dirname, "../fonts/lexend/Lexend[HEXP,wght].ttf");
+	}
+
+	return ttfPath;
 }
