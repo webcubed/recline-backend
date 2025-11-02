@@ -17,6 +17,7 @@
 	"author": "webcubed",
 	"license": "ISC",
 	"dependencies": {
+		"@resvg/resvg-js": "^2.6.2",
 		"@vercel/edge-config": "^1.4.3",
 		"axios": "^1.13.1",
 		"discord.js": "^14.24.2",
