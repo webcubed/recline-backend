@@ -36,14 +36,28 @@ export const sendHomeworkCommand = new SlashCommandBuilder()
 
 const sessions = new Map();
 
-const CLASS_OPTIONS = [
-	{ label: "chan 8/9", value: "chan 8/9" },
-	{ label: "chan 9/10", value: "chan 9/10" },
-	{ label: "hua 5/6", value: "hua 5/6" },
-	{ label: "hua 7/8", value: "hua 7/8" },
-	{ label: "maggio 2/3", value: "maggio 2/3" },
-	{ label: "maggio 6/7", value: "maggio 6/7" },
+// Optional: map class keys to section names for display next to class
+const SECTION_NAME_MAP = new Map([["chan 9/10", "Section 7"]]);
+
+function classLabelFor(key) {
+	const section = SECTION_NAME_MAP.get(key);
+	return section ? `${key} — ${section}` : key;
+}
+
+const CLASS_KEYS = [
+	"chan 8/9",
+	"chan 9/10",
+	"hua 5/6",
+	"hua 7/8",
+	"maggio 2/3",
+	"maggio 3/4",
+	"maggio 6/7",
 ];
+
+const CLASS_OPTIONS = CLASS_KEYS.map((key) => ({
+	label: classLabelFor(key),
+	value: key,
+}));
 
 const DAY_OPTIONS = [
 	{ label: "A Day", value: "A" },
@@ -98,7 +112,7 @@ function buildSelectionRows({
 }) {
 	const classSelect = new StringSelectMenuBuilder()
 		.setCustomId("hw_class")
-		.setPlaceholder("Select class")
+		.setPlaceholder(classLabelFor(classValue))
 		.setMinValues(1)
 		.setMaxValues(1)
 		.addOptions(CLASS_OPTIONS)
@@ -252,7 +266,11 @@ async function handleSelectUpdate(interaction) {
 	const value = interaction.values[0];
 	if (interaction.customId === "hw_class") session.pending.classKey = value;
 	if (interaction.customId === "hw_day") session.pending.day = value;
-	if (interaction.customId === "hw_period") session.pending.period = value;
+	if (interaction.customId === "hw_period") {
+		session.pending.period = value;
+		session.pending.periodSelected = true;
+	}
+
 	if (interaction.customId === "hw_schedule") session.scheduleType = value;
 
 	await interaction.update({
@@ -359,17 +377,29 @@ async function startSession(interaction) {
 }
 
 function computeEvent(pending, scheduleType) {
-	const { title, due, time, classKey, day } = pending;
+	const { title, due, time, classKey, day, period, periodSelected } = pending;
 	const date = parseMonthDayToDate(due);
 
 	let timeString = time && time.trim() !== "" ? time.trim() : null;
 	if (!timeString) {
-		const period = defaultPeriodFor({
-			classKey,
-			day,
-			fallback: Number.parseInt((classKey.match(/(\d+)/u) ?? [])[0] ?? "8", 10),
+		let selectedPeriod;
+		if (periodSelected && period) {
+			selectedPeriod = Number.parseInt(String(period), 10);
+		} else {
+			selectedPeriod = defaultPeriodFor({
+				classKey,
+				day,
+				fallback: Number.parseInt(
+					(classKey.match(/(\d+)/u) ?? [])[0] ?? "8",
+					10
+				),
+			});
+		}
+
+		timeString = getStartTimeForPeriod({
+			period: selectedPeriod,
+			scheduleType,
 		});
-		timeString = getStartTimeForPeriod({ period, scheduleType });
 	}
 
 	const [hh, mm, ss] = timeString.split(":").map((n) => Number.parseInt(n, 10));
@@ -384,7 +414,20 @@ function defaultPeriodFor({ classKey, day, fallback }) {
 	const second = Number.parseInt(match[2], 10);
 	if (classKey.startsWith("chan ")) {
 		if (classKey.includes("9/10")) return day === "B" ? first : second; // 9 on B, 10 on A
-		if (classKey.includes("8/9")) return first; // 8 is beginning on both A and B per example
+		if (classKey.includes("8/9")) return first; // 8 on both A and B
+	}
+
+	// Maggio rules
+	if (classKey.startsWith("maggio ")) {
+		if (classKey.includes("2/3")) return day === "A" ? 3 : first; // Period 3 on A, 2 on B
+		if (classKey.includes("3/4")) return day === "B" ? 3 : second; // Period 3 on B, 4 on A
+		if (classKey.includes("6/7")) return day === "A" ? 7 : first; // Period 7 on A, 6 on B
+	}
+
+	// Hua rules
+	if (classKey.startsWith("hua ")) {
+		if (classKey.includes("5/6")) return day === "A" ? 6 : first; // Period 6 on A, 5 on B
+		if (classKey.includes("7/8")) return day === "B" ? 7 : second; // Period 7 on B, 8 on A
 	}
 
 	return first;
@@ -435,7 +478,7 @@ async function finalizeAndPost(interaction, session) {
 	const payload = await buildFinalPayload({
 		format: session.format,
 		events: session.events,
-		headerClass: mostLikelyClass(session.events),
+		headerClass: classLabelFor(mostLikelyClass(session.events)),
 	});
 	await targetChannel.send(payload);
 	sessions.delete(interaction.user.id);
