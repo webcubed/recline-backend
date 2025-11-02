@@ -1,3 +1,4 @@
+/* eslint-disable sort-imports */
 import {
 	ActionRowBuilder,
 	ButtonBuilder,
@@ -5,11 +6,13 @@ import {
 	ChannelType,
 	InteractionType,
 	ModalBuilder,
+	PermissionsBitField,
 	SlashCommandBuilder,
 	StringSelectMenuBuilder,
 	TextInputBuilder,
 	TextInputStyle,
 } from "discord.js";
+import { zonedTimeToUtc } from "date-fns-tz";
 import { renderEmbed, renderImage, renderText } from "./homework-renderers.js";
 import { getStartTimeForPeriod } from "./bell-schedule.js";
 import { trackImagePost } from "./homework-tracker.js";
@@ -328,6 +331,19 @@ async function startSession(interaction) {
 	const target =
 		interaction.options.getChannel("target") ?? interaction.channel;
 
+	// Basic permission check: user must be allowed to send messages in target
+	const { member } = interaction;
+	const canUserSend = target
+		.permissionsFor(member)
+		?.has(PermissionsBitField.Flags.SendMessages);
+	if (!canUserSend) {
+		await interaction.reply({
+			content: `You don't have permission to send messages in <#${target.id}>.`,
+			ephemeral: true,
+		});
+		return;
+	}
+
 	sessions.set(interaction.user.id, {
 		format,
 		channelId: target.id,
@@ -345,7 +361,7 @@ async function startSession(interaction) {
 
 function computeEvent(pending) {
 	const { title, due, time, classKey, day } = pending;
-	const date = parseMonthDayToDate(due);
+	const date = parseMonthDayToDate(due); // Local components only
 
 	let timeString = normalizeTime(time);
 	if (!timeString) {
@@ -361,8 +377,13 @@ function computeEvent(pending) {
 	}
 
 	const [hh, mm, ss] = timeString.split(":").map((n) => Number.parseInt(n, 10));
-	date.setHours(hh, mm, ss, 0);
-	return { title, classKey, dueTimestamp: date.getTime() };
+	// Build a zoned time in America/New_York and convert to UTC millis
+	const year = date.getFullYear();
+	const month = date.getMonth();
+	const dayNumber = date.getDate();
+	const zoned = new Date(year, month, dayNumber, hh, mm, ss, 0);
+	const utc = zonedTimeToUtc(zoned, "America/New_York");
+	return { title, classKey, dueTimestamp: utc.getTime() };
 }
 
 function normalizeTime(input) {
@@ -476,6 +497,23 @@ async function finalizeAndPost(interaction, session) {
 		session.channelId
 	);
 
+	// Check again right before posting that the user can send in targetChannel
+	const guildMember = interaction.member;
+	const userCanSend = targetChannel
+		.permissionsFor(guildMember)
+		?.has(PermissionsBitField.Flags.SendMessages);
+	if (!userCanSend) {
+		const respond = (data) =>
+			interaction.deferred || interaction.replied
+				? interaction.editReply(data)
+				: interaction.update(data);
+		await respond({
+			content: `You don't have permission to send messages in <#${targetChannel.id}>.`,
+			components: [],
+		});
+		return;
+	}
+
 	// Choose the correct responder based on whether we've already acknowledged
 	const respond = (data) =>
 		interaction.deferred || interaction.replied
@@ -499,7 +537,21 @@ async function finalizeAndPost(interaction, session) {
 			session.classKey || mostLikelyClass(session.events)
 		),
 	});
-	const sent = await targetChannel.send(payload);
+	let sent;
+	try {
+		sent = await targetChannel.send(payload);
+	} catch (error) {
+		const respond = (data) =>
+			interaction.deferred || interaction.replied
+				? interaction.editReply(data)
+				: interaction.update(data);
+		await respond({
+			content: `Failed to post in <#${targetChannel.id}>: ${error.message ?? "unknown error"}`,
+			components: [],
+		});
+		return;
+	}
+
 	if (session.format === "image") {
 		// Track for daily updates
 		await trackImagePost({

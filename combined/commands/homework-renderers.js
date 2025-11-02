@@ -1,6 +1,7 @@
 /* eslint-disable sort-imports */
 import { Buffer } from "node:buffer";
 import { AttachmentBuilder, EmbedBuilder } from "discord.js";
+import { formatInTimeZone } from "date-fns-tz";
 import { macchiato } from "./theme.js";
 
 export function renderText({ events, headerClass }) {
@@ -36,6 +37,12 @@ export function renderEmbed({ events, headerClass }) {
 
 // SVG generator
 export async function renderImage({ events, headerClass }) {
+	// Try to load Lexend via Google Fonts within the SVG. Many renderers ignore external resources,
+	// but when supported this ensures consistent typography even if the host lacks the font.
+	const fontCss =
+		"@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;800&display=swap');\n";
+	const baseTextCss =
+		"text, tspan { font-family: Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'; }";
 	const rel = (ts) => {
 		const diff = ts - Date.now();
 		const future = diff >= 0;
@@ -62,9 +69,11 @@ export async function renderImage({ events, headerClass }) {
 			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="18" fill="${macchiato.subtext0}">${
 				event.title
 			}</text>
-			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="16" fill="${macchiato.blue}"><tspan>${new Date(
-				event.dueTimestamp
-			).toLocaleDateString()}</tspan></text>
+			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="16" fill="${macchiato.blue}"><tspan>${formatInTimeZone(
+				new Date(event.dueTimestamp),
+				"America/New_York",
+				"MM/dd/yyyy"
+			)}</tspan></text>
 			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="14" fill="${macchiato.subtext1}"><tspan>${rel(
 				event.dueTimestamp
 			)}</tspan></text>
@@ -78,6 +87,12 @@ export async function renderImage({ events, headerClass }) {
 	const headerText = `Homework — ${resolvedClass}`;
 	const svg = `<?xml version="1.0" encoding="UTF-8"?>
 	<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
+		<defs>
+			<style type="text/css"><![CDATA[
+				${fontCss}
+				${baseTextCss}
+			]]></style>
+		</defs>
 		<rect width="100%" height="100%" fill="${macchiato.base}"/>
 		<text x="24" y="${titleY}" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI'" font-size="30" font-weight="800" fill="${macchiato.lavender}">${headerText}</text>
 		${items}
