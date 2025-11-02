@@ -20,7 +20,7 @@
 		"@resvg/resvg-js": "^2.6.2",
 		"@vercel/edge-config": "^1.4.3",
 		"axios": "^1.13.1",
-		"date-fns-tz": "^2.0.0",
+		"date-fns-tz": "^2.0.1",
 		"discord.js": "^14.24.2",
 		"dotenv": "17.0.0",
 		"express": "^5.1.0",
