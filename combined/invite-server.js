@@ -34,7 +34,6 @@ const minimalPerms = sumPermissions([
 	PERMS.USE_APPLICATION_COMMANDS,
 ]);
 
-// Recommended: minimal + basic message send/embed/attach/view history + view channel
 const recommendedPerms = sumPermissions([
 	PERMS.VIEW_CHANNEL,
 	PERMS.SEND_MESSAGES,

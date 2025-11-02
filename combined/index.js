@@ -83,7 +83,7 @@ client.once("ready", async () => {
 		await registerSlashCommands({
 			token,
 			clientId: process.env.CLIENT_ID,
-			guildId: process.env.GUILD_ID,
+			guildId: process.env.ALT_GUILD_ID,
 			commands: slashCommands,
 		});
 		console.log("Slash commands registered");
