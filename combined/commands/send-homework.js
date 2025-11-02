@@ -40,8 +40,15 @@ export const sendHomeworkCommand = new SlashCommandBuilder()
 
 const sessions = new Map();
 
-// Optional: map class keys to section names for display next to class
-const SECTION_NAME_MAP = new Map([["chan 9/10", "Section 7"]]);
+const SECTION_NAME_MAP = new Map([
+	["maggio 2/3", "Section 1"],
+	["maggio 3/4", "Section 2"],
+	["hua 5/6", "Section 3"],
+	["maggio 6/7", "Section 4"],
+	["chan 8/9", "Section 5"],
+	["hua 7/8", "Section 6"],
+	["chan 9/10", "Section 7"],
+]);
 
 function classLabelFor(key) {
 	const section = SECTION_NAME_MAP.get(key);
