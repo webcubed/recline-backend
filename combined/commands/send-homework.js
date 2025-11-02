@@ -164,6 +164,21 @@ function buildNextRows() {
 	];
 }
 
+function buildBeginRows() {
+	return [
+		new ActionRowBuilder().addComponents(
+			new ButtonBuilder()
+				.setCustomId("hw_begin")
+				.setStyle(ButtonStyle.Primary)
+				.setLabel("Begin adding"),
+			new ButtonBuilder()
+				.setCustomId("hw_cancel")
+				.setStyle(ButtonStyle.Secondary)
+				.setLabel("Cancel")
+		),
+	];
+}
+
 export async function handleSendHomeworkInteraction(interaction) {
 	if (shouldStart(interaction)) {
 		await startSession(interaction);
@@ -224,14 +239,12 @@ async function handleModalSubmit(interaction) {
 		title,
 		due,
 		time,
-		classKey: "chan 9/10",
-		day: "A",
 	};
 
 	await interaction.reply({
-		content: `Event: **${title}**\nDue: ${due}${time ? ` at ${time}` : ""}\nPick class/day/schedule:`,
+		content: `Event: **${title}**\nDue: ${due}${time ? ` at ${time}` : ""}`,
 		ephemeral: true,
-		components: [...buildSelectionRows({}), ...buildConfirmRows()],
+		components: buildConfirmRows(),
 	});
 }
 
@@ -244,8 +257,8 @@ async function handleSelectUpdate(interaction) {
 		});
 
 	const value = interaction.values[0];
-	if (interaction.customId === "hw_class") session.pending.classKey = value;
-	if (interaction.customId === "hw_day") session.pending.day = value;
+	if (interaction.customId === "hw_class") session.classKey = value;
+	if (interaction.customId === "hw_day") session.day = value;
 	if (interaction.customId === "hw_schedule") session.scheduleType = value;
 
 	// Rebuild the selection rows to reflect current selections
@@ -253,11 +266,11 @@ async function handleSelectUpdate(interaction) {
 		content: interaction.message.content,
 		components: [
 			...buildSelectionRows({
-				classValue: session.pending.classKey,
-				dayValue: session.pending.day,
+				classValue: session.classKey,
+				dayValue: session.day,
 				scheduleValue: session.scheduleType,
 			}),
-			...buildConfirmRows(),
+			...buildBeginRows(),
 		],
 	});
 }
@@ -271,6 +284,12 @@ async function handleButtonPress(interaction) {
 		});
 
 	const { customId } = interaction;
+
+	if (customId === "hw_begin") {
+		await interaction.showModal(buildModal());
+		return;
+	}
+
 	if (customId === "hw_retry_modal") {
 		await interaction.showModal(buildModal());
 		return;
@@ -283,7 +302,7 @@ async function handleButtonPress(interaction) {
 	}
 
 	if (customId === "hw_save") {
-		const event = computeEvent(session.pending, session.scheduleType);
+		const event = computeEvent(session.pending, session);
 		session.events.push(event);
 		session.pending = {};
 		await interaction.update({
@@ -350,12 +369,26 @@ async function startSession(interaction) {
 		events: [],
 		pending: {},
 		scheduleType: SCHEDULE_TYPES.REGULAR,
+		classKey: "chan 9/10",
+		day: "A",
 	});
-	await interaction.showModal(buildModal());
+	await interaction.reply({
+		content: "Set context for this homework post:",
+		ephemeral: true,
+		components: [
+			...buildSelectionRows({
+				classValue: "chan 9/10",
+				dayValue: "A",
+				scheduleValue: SCHEDULE_TYPES.REGULAR,
+			}),
+			...buildBeginRows(),
+		],
+	});
 }
 
-function computeEvent(pending, scheduleType) {
-	const { title, due, time, classKey, day } = pending;
+function computeEvent(pending, session) {
+	const { title, due, time } = pending;
+	const { classKey, day, scheduleType } = session;
 	const date = parseMonthDayToDate(due);
 
 	let timeString = time && time.trim() !== "" ? time.trim() : null;
@@ -454,14 +487,7 @@ async function finalizeAndPost(interaction, session) {
 	if (!session.events || session.events.length === 0) {
 		await respond({
 			content: "No events saved yet. Add at least one, or cancel.",
-			components: [
-				...buildSelectionRows({
-					classValue: session.pending?.classKey ?? "chan 9/10",
-					dayValue: session.pending?.day ?? "A",
-					scheduleValue: session.scheduleType,
-				}),
-				...buildConfirmRows(),
-			],
+			components: [...buildBeginRows()],
 		});
 		return;
 	}
@@ -469,7 +495,9 @@ async function finalizeAndPost(interaction, session) {
 	const payload = await buildFinalPayload({
 		format: session.format,
 		events: session.events,
-		headerClass: classLabelFor(mostLikelyClass(session.events)),
+		headerClass: classLabelFor(
+			session.classKey ?? mostLikelyClass(session.events)
+		),
 	});
 	await targetChannel.send(payload);
 	sessions.delete(interaction.user.id);
