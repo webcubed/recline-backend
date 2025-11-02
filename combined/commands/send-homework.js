@@ -69,10 +69,7 @@ const SCHEDULE_OPTIONS = [
 	{ label: "Conference", value: SCHEDULE_TYPES.CONFERENCE },
 ];
 
-const PERIOD_OPTIONS = Array.from({ length: 10 }, (_, i) => {
-	const p = i + 1;
-	return { label: `Period ${p}`, value: String(p) };
-});
+// Period options removed; times are inferred from class + A/B day + schedule
 
 function buildModal(customId = "hw_modal") {
 	const modal = new ModalBuilder()
@@ -104,15 +101,9 @@ function buildModal(customId = "hw_modal") {
 	);
 }
 
-function makeModalId() {
-	// Deterministic-ish but unique per open
-	return `hw_modal:${Date.now()}:${Math.floor(Math.random() * 1000)}`;
-}
-
 function buildSelectionRows({
 	classValue = "chan 9/10",
 	dayValue = "A",
-	periodValue = "10",
 	scheduleValue = SCHEDULE_TYPES.REGULAR,
 }) {
 	const classSelect = new StringSelectMenuBuilder()
@@ -129,13 +120,6 @@ function buildSelectionRows({
 		.setMaxValues(1)
 		.addOptions(DAY_OPTIONS);
 
-	const periodSelect = new StringSelectMenuBuilder()
-		.setCustomId("hw_period")
-		.setPlaceholder("Period (default based on class/day)")
-		.setMinValues(1)
-		.setMaxValues(1)
-		.addOptions(PERIOD_OPTIONS);
-
 	const scheduleSelect = new StringSelectMenuBuilder()
 		.setCustomId("hw_schedule")
 		.setPlaceholder("Schedule type")
@@ -148,9 +132,6 @@ function buildSelectionRows({
 			classSelect.setPlaceholder(classValue)
 		),
 		new ActionRowBuilder().addComponents(daySelect.setPlaceholder(dayValue)),
-		new ActionRowBuilder().addComponents(
-			periodSelect.setPlaceholder(periodValue)
-		),
 		new ActionRowBuilder().addComponents(
 			scheduleSelect.setPlaceholder(scheduleValue)
 		),
@@ -223,14 +204,6 @@ async function handleModalSubmit(interaction) {
 			ephemeral: true,
 		});
 
-	// Ensure this modal corresponds to the active session (modal ids are unique per open)
-	if (session.modalId && interaction.customId !== session.modalId) {
-		return interaction.reply({
-			content: "This modal is no longer valid. Please re-open the input.",
-			ephemeral: true,
-		});
-	}
-
 	const title = interaction.fields.getTextInputValue("hw_title");
 	const due = interaction.fields.getTextInputValue("hw_due");
 	const time = interaction.fields.getTextInputValue("hw_time");
@@ -257,11 +230,10 @@ async function handleModalSubmit(interaction) {
 		time,
 		classKey: "chan 9/10",
 		day: "A",
-		period: "10",
 	};
 
 	await interaction.reply({
-		content: `Event: **${title}**\nDue: ${due}${time ? ` at ${time}` : ""}\nPick class/day/period:`,
+		content: `Event: **${title}**\nDue: ${due}${time ? ` at ${time}` : ""}\nPick class/day/schedule:`,
 		ephemeral: true,
 		components: [...buildSelectionRows({}), ...buildConfirmRows()],
 	});
@@ -278,16 +250,19 @@ async function handleSelectUpdate(interaction) {
 	const value = interaction.values[0];
 	if (interaction.customId === "hw_class") session.pending.classKey = value;
 	if (interaction.customId === "hw_day") session.pending.day = value;
-	if (interaction.customId === "hw_period") {
-		session.pending.period = value;
-		session.pending.periodSelected = true;
-	}
-
 	if (interaction.customId === "hw_schedule") session.scheduleType = value;
 
+	// Rebuild the selection rows to reflect current selections
 	await interaction.update({
 		content: interaction.message.content,
-		components: interaction.message.components,
+		components: [
+			...buildSelectionRows({
+				classValue: session.pending.classKey,
+				dayValue: session.pending.day,
+				scheduleValue: session.scheduleType,
+			}),
+			...buildConfirmRows(),
+		],
 	});
 }
 
@@ -301,9 +276,7 @@ async function handleButtonPress(interaction) {
 
 	const { customId } = interaction;
 	if (customId === "hw_retry_modal") {
-		const newId = makeModalId();
-		session.modalId = newId;
-		await interaction.showModal(buildModal(newId));
+		await interaction.showModal(buildModal());
 		return;
 	}
 
@@ -325,17 +298,7 @@ async function handleButtonPress(interaction) {
 	}
 
 	if (customId === "hw_add") {
-		await interaction.update({
-			content: "Add another event",
-			components: [],
-		});
-		await interaction.followUp({
-			ephemeral: true,
-			content: "Opening modal...",
-		});
-		const newId = makeModalId();
-		session.modalId = newId;
-		await interaction.showModal(buildModal(newId));
+		await interaction.showModal(buildModal());
 		return;
 	}
 
@@ -382,7 +345,6 @@ async function startSession(interaction) {
 	const format = interaction.options.getString("format");
 	const target =
 		interaction.options.getChannel("target") ?? interaction.channel;
-	const modalId = makeModalId();
 
 	sessions.set(interaction.user.id, {
 		format,
@@ -390,30 +352,21 @@ async function startSession(interaction) {
 		events: [],
 		pending: {},
 		scheduleType: SCHEDULE_TYPES.REGULAR,
-		modalId,
 	});
-	await interaction.showModal(buildModal(modalId));
+	await interaction.showModal(buildModal());
 }
 
 function computeEvent(pending, scheduleType) {
-	const { title, due, time, classKey, day, period, periodSelected } = pending;
+	const { title, due, time, classKey, day } = pending;
 	const date = parseMonthDayToDate(due);
 
 	let timeString = time && time.trim() !== "" ? time.trim() : null;
 	if (!timeString) {
-		let selectedPeriod;
-		if (periodSelected && period) {
-			selectedPeriod = Number.parseInt(String(period), 10);
-		} else {
-			selectedPeriod = defaultPeriodFor({
-				classKey,
-				day,
-				fallback: Number.parseInt(
-					(classKey.match(/(\d+)/u) ?? [])[0] ?? "8",
-					10
-				),
-			});
-		}
+		const selectedPeriod = defaultPeriodFor({
+			classKey,
+			day,
+			fallback: Number.parseInt((classKey.match(/(\d+)/u) ?? [])[0] ?? "8", 10),
+		});
 
 		timeString = getStartTimeForPeriod({
 			period: selectedPeriod,
@@ -494,6 +447,21 @@ async function finalizeAndPost(interaction, session) {
 	const targetChannel = await interaction.client.channels.fetch(
 		session.channelId
 	);
+	if (!session.events || session.events.length === 0) {
+		await interaction.update({
+			content: "No events saved yet. Add at least one, or cancel.",
+			components: [
+				...buildSelectionRows({
+					classValue: session.pending?.classKey ?? "chan 9/10",
+					dayValue: session.pending?.day ?? "A",
+					scheduleValue: session.scheduleType,
+				}),
+				...buildConfirmRows(),
+			],
+		});
+		return;
+	}
+
 	const payload = await buildFinalPayload({
 		format: session.format,
 		events: session.events,
