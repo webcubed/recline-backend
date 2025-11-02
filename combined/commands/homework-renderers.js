@@ -1,9 +1,10 @@
 /* eslint-disable sort-imports */
 import { Buffer } from "node:buffer";
 import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { AttachmentBuilder, EmbedBuilder } from "discord.js";
-import axios from "axios";
 import { formatInTimeZone } from "date-fns-tz";
 import { macchiato } from "./theme.js";
 
@@ -116,37 +117,35 @@ export async function renderImage({ events, headerClass }) {
 	}
 }
 
-// Cache for embedded font
-let cachedLexendData;
+// Cache for embedded font CSS
 let cachedLexendCss;
 
 async function getEmbeddedLexendCss() {
 	if (cachedLexendCss) return cachedLexendCss;
 	try {
-		// Prefer local file if provided to avoid network dependency
-		const localPath = process.env.LEXEND_WOFF2_PATH;
-		if (localPath && fs.existsSync(localPath)) {
-			const data = fs.readFileSync(localPath);
-			cachedLexendData = Buffer.from(data).toString("base64");
-			cachedLexendCss = `@font-face{font-family:'Lexend';src:url(data:font/woff2;base64,${cachedLexendData}) format('woff2');font-weight:400 800;font-style:normal;font-display:swap;}`;
+		// Prefer explicit env var path; otherwise resolve bundled TTF path
+		const envPath = process.env.LEXEND_TTF_PATH;
+		let ttfPath = envPath;
+		if (!ttfPath) {
+			const __filename = fileURLToPath(import.meta.url);
+			const __dirname = path.dirname(__filename);
+			ttfPath = path.resolve(
+				__dirname,
+				"../fonts/lexend/Lexend[HEXP,wght].ttf"
+			);
+		}
+
+		if (!fs.existsSync(ttfPath)) {
+			cachedLexendCss = "";
 			return cachedLexendCss;
 		}
 
-		// Fetch Google Fonts CSS and then the first WOFF2 URL
-		const cssUrl =
-			"https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;800&display=swap";
-		const cssResp = await axios.get(cssUrl, { responseType: "text" });
-		const match = cssResp.data.match(/url\((https:[^)]+\.woff2)\)/u);
-		if (!match) throw new Error("Could not find Lexend woff2 URL");
-		const woff2Url = match[1];
-		const binResp = await axios.get(woff2Url, {
-			responseType: "arraybuffer",
-		});
-		cachedLexendData = Buffer.from(binResp.data).toString("base64");
-		cachedLexendCss = `@font-face{font-family:'Lexend';src:url(data:font/woff2;base64,${cachedLexendData}) format('woff2');font-weight:400 800;font-style:normal;font-display:swap;}`;
+		const ttf = fs.readFileSync(ttfPath);
+		const b64 = Buffer.from(ttf).toString("base64");
+		// Variable TTF supports a weight range; set broad range to allow bold header
+		cachedLexendCss = `@font-face{font-family:'Lexend';src:url(data:font/ttf;base64,${b64}) format('truetype');font-weight:100 900;font-style:normal;font-display:swap;}`;
 		return cachedLexendCss;
 	} catch {
-		// If fetching fails, still set the family so rendering continues (will use system default if not found)
 		cachedLexendCss = "";
 		return cachedLexendCss;
 	}
