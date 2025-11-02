@@ -372,11 +372,6 @@ async function startSession(interaction) {
 		pending: {},
 		scheduleType: SCHEDULE_TYPES.REGULAR,
 	});
-	// To avoid Unknown interaction on some hosts, defer and follow up before opening modal
-	if (!interaction.deferred && !interaction.replied) {
-		await interaction.reply({ content: "Opening modal...", ephemeral: true });
-	}
-
 	await interaction.showModal(buildModal());
 }
 
