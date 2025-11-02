@@ -74,9 +74,9 @@ const PERIOD_OPTIONS = Array.from({ length: 10 }, (_, i) => {
 	return { label: `Period ${p}`, value: String(p) };
 });
 
-function buildModal() {
+function buildModal(customId = "hw_modal") {
 	const modal = new ModalBuilder()
-		.setCustomId("hw_modal")
+		.setCustomId(customId)
 		.setTitle("Add homework");
 	const title = new TextInputBuilder()
 		.setCustomId("hw_title")
@@ -102,6 +102,11 @@ function buildModal() {
 		new ActionRowBuilder().addComponents(due),
 		new ActionRowBuilder().addComponents(time)
 	);
+}
+
+function makeModalId() {
+	// Deterministic-ish but unique per open
+	return `hw_modal:${Date.now()}:${Math.floor(Math.random() * 1000)}`;
 }
 
 function buildSelectionRows({
@@ -218,6 +223,14 @@ async function handleModalSubmit(interaction) {
 			ephemeral: true,
 		});
 
+	// Ensure this modal corresponds to the active session (modal ids are unique per open)
+	if (session.modalId && interaction.customId !== session.modalId) {
+		return interaction.reply({
+			content: "This modal is no longer valid. Please re-open the input.",
+			ephemeral: true,
+		});
+	}
+
 	const title = interaction.fields.getTextInputValue("hw_title");
 	const due = interaction.fields.getTextInputValue("hw_due");
 	const time = interaction.fields.getTextInputValue("hw_time");
@@ -288,7 +301,9 @@ async function handleButtonPress(interaction) {
 
 	const { customId } = interaction;
 	if (customId === "hw_retry_modal") {
-		await interaction.showModal(buildModal());
+		const newId = makeModalId();
+		session.modalId = newId;
+		await interaction.showModal(buildModal(newId));
 		return;
 	}
 
@@ -318,7 +333,9 @@ async function handleButtonPress(interaction) {
 			ephemeral: true,
 			content: "Opening modal...",
 		});
-		await interaction.showModal(buildModal());
+		const newId = makeModalId();
+		session.modalId = newId;
+		await interaction.showModal(buildModal(newId));
 		return;
 	}
 
@@ -365,14 +382,17 @@ async function startSession(interaction) {
 	const format = interaction.options.getString("format");
 	const target =
 		interaction.options.getChannel("target") ?? interaction.channel;
+	const modalId = makeModalId();
+
 	sessions.set(interaction.user.id, {
 		format,
 		channelId: target.id,
 		events: [],
 		pending: {},
 		scheduleType: SCHEDULE_TYPES.REGULAR,
+		modalId,
 	});
-	await interaction.showModal(buildModal());
+	await interaction.showModal(buildModal(modalId));
 }
 
 function computeEvent(pending, scheduleType) {
