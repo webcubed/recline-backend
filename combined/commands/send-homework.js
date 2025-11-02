@@ -108,33 +108,29 @@ function buildSelectionRows({
 }) {
 	const classSelect = new StringSelectMenuBuilder()
 		.setCustomId("hw_class")
-		.setPlaceholder(classLabelFor(classValue))
 		.setMinValues(1)
 		.setMaxValues(1)
-		.addOptions(CLASS_OPTIONS);
+		.addOptions(CLASS_OPTIONS)
+		.setPlaceholder(classLabelFor(classValue));
 
 	const daySelect = new StringSelectMenuBuilder()
 		.setCustomId("hw_day")
-		.setPlaceholder("A or B day")
 		.setMinValues(1)
 		.setMaxValues(1)
-		.addOptions(DAY_OPTIONS);
+		.addOptions(DAY_OPTIONS)
+		.setPlaceholder(dayValue);
 
 	const scheduleSelect = new StringSelectMenuBuilder()
 		.setCustomId("hw_schedule")
-		.setPlaceholder("Schedule type")
 		.setMinValues(1)
 		.setMaxValues(1)
-		.addOptions(SCHEDULE_OPTIONS);
+		.addOptions(SCHEDULE_OPTIONS)
+		.setPlaceholder(scheduleValue);
 
 	return [
-		new ActionRowBuilder().addComponents(
-			classSelect.setPlaceholder(classValue)
-		),
-		new ActionRowBuilder().addComponents(daySelect.setPlaceholder(dayValue)),
-		new ActionRowBuilder().addComponents(
-			scheduleSelect.setPlaceholder(scheduleValue)
-		),
+		new ActionRowBuilder().addComponents(classSelect),
+		new ActionRowBuilder().addComponents(daySelect),
+		new ActionRowBuilder().addComponents(scheduleSelect),
 	];
 }
 
@@ -303,6 +299,8 @@ async function handleButtonPress(interaction) {
 	}
 
 	if (customId === "hw_done") {
+		// Image rendering or network sends may exceed 3s; acknowledge first.
+		await interaction.deferUpdate();
 		await finalizeAndPost(interaction, session);
 	}
 }
@@ -447,8 +445,14 @@ async function finalizeAndPost(interaction, session) {
 	const targetChannel = await interaction.client.channels.fetch(
 		session.channelId
 	);
+
+	// Choose the correct responder based on whether we've already acknowledged
+	const respond = (data) =>
+		interaction.deferred || interaction.replied
+			? interaction.editReply(data)
+			: interaction.update(data);
 	if (!session.events || session.events.length === 0) {
-		await interaction.update({
+		await respond({
 			content: "No events saved yet. Add at least one, or cancel.",
 			components: [
 				...buildSelectionRows({
@@ -469,7 +473,7 @@ async function finalizeAndPost(interaction, session) {
 	});
 	await targetChannel.send(payload);
 	sessions.delete(interaction.user.id);
-	await interaction.update({ content: "Posted homework.", components: [] });
+	await respond({ content: "Posted homework.", components: [] });
 }
 
 function mostLikelyClass(events) {
