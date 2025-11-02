@@ -115,8 +115,7 @@ function buildSelectionRows({
 		.setPlaceholder(classLabelFor(classValue))
 		.setMinValues(1)
 		.setMaxValues(1)
-		.addOptions(CLASS_OPTIONS)
-		.setDefaultValues?.([{ id: "hw_class", value: classValue }]);
+		.addOptions(CLASS_OPTIONS);
 
 	const daySelect = new StringSelectMenuBuilder()
 		.setCustomId("hw_day")
@@ -373,6 +372,11 @@ async function startSession(interaction) {
 		pending: {},
 		scheduleType: SCHEDULE_TYPES.REGULAR,
 	});
+	// To avoid Unknown interaction on some hosts, defer and follow up before opening modal
+	if (!interaction.deferred && !interaction.replied) {
+		await interaction.reply({ content: "Opening modal...", ephemeral: true });
+	}
+
 	await interaction.showModal(buildModal());
 }
 
