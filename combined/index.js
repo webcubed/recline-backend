@@ -11,6 +11,11 @@ import ws from "ws";
 import { mw } from "request-ip";
 import { XMLHttpRequest } from "xmlhttprequest";
 import { parseString } from "xml2js";
+import {
+	commands as slashCommands,
+	handleSlashInteraction,
+} from "./commands/slash-commands.js";
+import { registerSlashCommands } from "./commands/register.js";
 
 const version = fs
 	.readFileSync("./version.txt", "utf8")
@@ -71,8 +76,20 @@ const client = new Client({
 		GatewayIntentBits.MessageContent,
 	],
 });
-client.once("ready", () => {
+client.once("ready", async () => {
 	console.log("bot ready");
+	// Register guild commands for faster iteration; switch to global when stable
+	try {
+		await registerSlashCommands({
+			token,
+			clientId: process.env.CLIENT_ID,
+			guildId: process.env.GUILD_ID,
+			commands: slashCommands,
+		});
+		console.log("Slash commands registered");
+	} catch (error) {
+		console.error("Failed to register slash commands", error);
+	}
 });
 client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	if (newPresence.status === PresenceUpdateStatus.Offline) {
@@ -158,6 +175,10 @@ client.on("messageUpdate", async (oldMessage, newMessage) => {
 			}
 		}
 	}
+});
+// Handle slash command interactions
+client.on("interactionCreate", async (interaction) => {
+	await handleSlashInteraction(interaction);
 });
 client.login(token);
 /* -------------------------------- functions ------------------------------- */
