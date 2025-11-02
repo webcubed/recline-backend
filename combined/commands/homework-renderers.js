@@ -1,6 +1,9 @@
 /* eslint-disable sort-imports */
 import { Buffer } from "node:buffer";
+import fs from "node:fs";
+import process from "node:process";
 import { AttachmentBuilder, EmbedBuilder } from "discord.js";
+import axios from "axios";
 import { formatInTimeZone } from "date-fns-tz";
 import { macchiato } from "./theme.js";
 
@@ -37,12 +40,9 @@ export function renderEmbed({ events, headerClass }) {
 
 // SVG generator
 export async function renderImage({ events, headerClass }) {
-	// Try to load Lexend via Google Fonts within the SVG. Many renderers ignore external resources,
-	// but when supported this ensures consistent typography even if the host lacks the font.
-	const fontCss =
-		"@import url('https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;800&display=swap');\n";
-	const baseTextCss =
-		"text, tspan { font-family: Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Arial, 'Noto Sans', sans-serif; }";
+	// Embed Lexend as WOFF2 via data URL so resvg or other renderers don't need network/fallbacks.
+	const fontFaceCss = await getEmbeddedLexendCss();
+	const baseTextCss = "text, tspan { font-family: 'Lexend'; }";
 	const rel = (ts) => {
 		const diff = ts - Date.now();
 		const future = diff >= 0;
@@ -66,15 +66,15 @@ export async function renderImage({ events, headerClass }) {
 			(event, index) => `
 		<g transform="translate(24, ${startY + index * rowHeight})">
 			<rect x="0" y="-32" rx="10" ry="10" width="760" height="64" fill="${macchiato.surface0}"/>
-			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Arial, 'Noto Sans', sans-serif" font-size="18" fill="${macchiato.subtext0}">${
+			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="18" fill="${macchiato.subtext0}">${
 				event.title
 			}</text>
-			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Arial, 'Noto Sans', sans-serif" font-size="16" fill="${macchiato.blue}"><tspan>${formatInTimeZone(
+			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="16" fill="${macchiato.blue}"><tspan>${formatInTimeZone(
 				new Date(event.dueTimestamp),
 				"America/New_York",
 				"MM/dd/yyyy"
 			)}</tspan></text>
-			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Arial, 'Noto Sans', sans-serif" font-size="14" fill="${macchiato.subtext1}"><tspan>${rel(
+			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="14" fill="${macchiato.subtext1}"><tspan>${rel(
 				event.dueTimestamp
 			)}</tspan></text>
 		</g>`
@@ -89,12 +89,12 @@ export async function renderImage({ events, headerClass }) {
 	<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
 		<defs>
 			<style type="text/css"><![CDATA[
-				${fontCss}
+				${fontFaceCss}
 				${baseTextCss}
 			]]></style>
 		</defs>
 		<rect width="100%" height="100%" fill="${macchiato.base}"/>
-		<text x="24" y="${titleY}" font-family="Lexend, 'Google Sans', Inter, ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Arial, 'Noto Sans', sans-serif" font-size="30" font-weight="800" fill="${macchiato.lavender}">${headerText}</text>
+		<text x="24" y="${titleY}" font-family="Lexend" font-size="30" font-weight="800" fill="${macchiato.lavender}">${headerText}</text>
 		${items}
 	</svg>`;
 
@@ -113,5 +113,41 @@ export async function renderImage({ events, headerClass }) {
 			name: "homework.svg",
 		});
 		return { files: [attachment] };
+	}
+}
+
+// Cache for embedded font
+let cachedLexendData;
+let cachedLexendCss;
+
+async function getEmbeddedLexendCss() {
+	if (cachedLexendCss) return cachedLexendCss;
+	try {
+		// Prefer local file if provided to avoid network dependency
+		const localPath = process.env.LEXEND_WOFF2_PATH;
+		if (localPath && fs.existsSync(localPath)) {
+			const data = fs.readFileSync(localPath);
+			cachedLexendData = Buffer.from(data).toString("base64");
+			cachedLexendCss = `@font-face{font-family:'Lexend';src:url(data:font/woff2;base64,${cachedLexendData}) format('woff2');font-weight:400 800;font-style:normal;font-display:swap;}`;
+			return cachedLexendCss;
+		}
+
+		// Fetch Google Fonts CSS and then the first WOFF2 URL
+		const cssUrl =
+			"https://fonts.googleapis.com/css2?family=Lexend:wght@400;700;800&display=swap";
+		const cssResp = await axios.get(cssUrl, { responseType: "text" });
+		const match = cssResp.data.match(/url\((https:[^)]+\.woff2)\)/u);
+		if (!match) throw new Error("Could not find Lexend woff2 URL");
+		const woff2Url = match[1];
+		const binResp = await axios.get(woff2Url, {
+			responseType: "arraybuffer",
+		});
+		cachedLexendData = Buffer.from(binResp.data).toString("base64");
+		cachedLexendCss = `@font-face{font-family:'Lexend';src:url(data:font/woff2;base64,${cachedLexendData}) format('woff2');font-weight:400 800;font-style:normal;font-display:swap;}`;
+		return cachedLexendCss;
+	} catch {
+		// If fetching fails, still set the family so rendering continues (will use system default if not found)
+		cachedLexendCss = "";
+		return cachedLexendCss;
 	}
 }
