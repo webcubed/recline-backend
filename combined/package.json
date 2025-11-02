@@ -17,9 +17,9 @@
 	"author": "webcubed",
 	"license": "ISC",
 	"dependencies": {
-		"@vercel/edge-config": "^1.4.0",
-		"axios": "^1.10.0",
-		"discord.js": "^14.21.0",
+		"@vercel/edge-config": "^1.4.3",
+		"axios": "^1.13.1",
+		"discord.js": "^14.24.2",
 		"dotenv": "17.0.0",
 		"express": "^5.1.0",
 		"recline-backend": "file:",
