@@ -239,7 +239,8 @@ export async function handleTypeHomework(interaction) {
 export function parseEventLine(line, classKey) {
 	// Title --- Month D, YYYY --- a|b --- [HH:MM(:SS)]
 	const raw = String(line ?? "");
-	const parts = raw.split(/\s*---\s*/u);
+	const cleaned = raw.replaceAll("\\", "");
+	const parts = cleaned.split(/\s*---\s*/u);
 	if (parts.length < 3 || parts.length > 4) {
 		return {
 			ok: false,
