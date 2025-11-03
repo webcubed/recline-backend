@@ -19,6 +19,7 @@ import { registerSlashCommands } from "./commands/register.js";
 import {
 	refreshImagesDaily,
 	startAdaptiveImageUpdates,
+	untrack,
 } from "./commands/homework-tracker.js";
 
 const version = fs
@@ -175,6 +176,11 @@ client.on("messageCreate", async (message) => {
 });
 client.on("messageDelete", async (message) => {
 	if (message.channelId === process.env.CHANNEL_ID) {
+		// Immediately stop tracking if this deleted message was a tracked image
+		try {
+			if (message?.id) untrack(message.id);
+		} catch {}
+
 		for (const client of wsServer.clients) {
 			if (client.readyState === WebSocket.OPEN) {
 				client.send(JSON.stringify({ type: "delete", data: message.id }));
