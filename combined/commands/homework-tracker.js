@@ -67,6 +67,20 @@ export function listTracked() {
 	return [...tracked.values()];
 }
 
+export function getTrackedStatus(messageId) {
+	const record = tracked.get(messageId);
+	if (!record) return { tracked: false };
+	return {
+		tracked: true,
+		bucket: record.bucket ?? null,
+		channelId: record.channelId,
+		messageId: record.messageId,
+		eventsCount: record.events?.length ?? 0,
+		allDue:
+			record.events?.every((event) => event.dueTimestamp <= Date.now()) ?? null,
+	};
+}
+
 export async function refreshImagesDaily(client) {
 	const entries = listTracked();
 	const now = Date.now();
@@ -106,10 +120,6 @@ async function refreshBucket(client, type) {
 		}
 
 		const allDue = record.events.every((event) => event.dueTimestamp <= now);
-		if (allDue) {
-			untrack(messageId);
-			return;
-		}
 
 		try {
 			const channel = await client.channels.fetch(record.channelId);
@@ -121,7 +131,13 @@ async function refreshBucket(client, type) {
 				headerClass: record.classKey,
 			});
 			await message.edit(payload);
-			// Reassign to the appropriate bucket after this tick
+			// If everything is due now, untrack after pushing the final 'due' state.
+			if (allDue) {
+				untrack(messageId);
+				return;
+			}
+
+			// Otherwise reassign to the appropriate bucket after this tick
 			updateBucketMembership(record);
 		} catch (error) {
 			const isUnknown = String(error?.message || "")
