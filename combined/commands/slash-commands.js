@@ -5,6 +5,7 @@ import {
 	sendHomeworkCommand,
 } from "./send-homework.js";
 import { mockHomeworkCommand, handleMockHomework } from "./mock-homework.js";
+import { typeHomeworkCommand, handleTypeHomework } from "./type-homework.js";
 
 const commandBuilders = [
 	new SlashCommandBuilder()
@@ -12,6 +13,7 @@ const commandBuilders = [
 		.setDescription("Replies with Pong!"),
 	sendHomeworkCommand,
 	mockHomeworkCommand,
+	typeHomeworkCommand,
 ];
 
 export const commands = commandBuilders.map((c) => c.toJSON());
@@ -22,6 +24,7 @@ const handlers = {
 		await interaction.reply({ content: "Pong!", ephemeral: true });
 	},
 	testhomework: handleMockHomework,
+	typehomework: handleTypeHomework,
 };
 
 export async function handleSlashInteraction(interaction) {
