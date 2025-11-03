@@ -100,7 +100,7 @@ export async function handleTypeHomework(interaction) {
 		content: [
 			"Typing mode started. Send messages here with:",
 			"- First line: section number (1-7)",
-			"- Then one or more lines, each: title -|- Month D, YYYY -|- a|b -|- [optional] HH:MM[:SS]",
+			"- Then one or more lines, each: title --- Month D, YYYY --- a|b --- [optional] HH:MM[:SS]",
 			"- Send 'end' on its own line when finished.",
 			"Non-matching lines will be deleted and you'll get a DM explaining why.",
 		].join("\n"),
@@ -237,21 +237,13 @@ export async function handleTypeHomework(interaction) {
 // ------------ Helpers ------------------------------------------------------
 
 export function parseEventLine(line, classKey) {
-	// Title -|- Month D, YYYY -|- a|b -|- [HH:MM(:SS)]
-	// Normalize Unicode width/compatibility and normalize common hyphens/bars
-	const nk = String(line ?? "").normalize("NFKC");
-	const normalized = nk
-		// Hyphens/dashes → '-'
-		.replaceAll(/[‐‑‒–—−﹘]/gu, "-")
-		// Vertical bars → '|'
-		.replaceAll(/[¦‖│┃❘｜︱︲⏐]/gu, "|");
-	// Remove format/zero-width characters that sometimes sneak in from mobile keyboards
-	const sanitized = normalized.replaceAll(/\p{Cf}/gu, "");
-	const parts = sanitized.split(/\s*-\s*\|\s*-\s*/u);
+	// Title --- Month D, YYYY --- a|b --- [HH:MM(:SS)]
+	const raw = String(line ?? "");
+	const parts = raw.split(/\s*---\s*/u);
 	if (parts.length < 3 || parts.length > 4) {
 		return {
 			ok: false,
-			error: `Expected 3 or 4 parts separated by -|-. Got ${parts.length} parts.\nOriginal: "${line}"\nNormalized: "${sanitized}"`,
+			error: `Expected 3 or 4 parts separated by ---. Got ${parts.length} parts.\nLine: "${raw}"`,
 		};
 	}
 
@@ -259,17 +251,16 @@ export function parseEventLine(line, classKey) {
 	const due = parts[1]?.trim();
 	const dayToken = parts[2]?.trim().toLowerCase();
 	const timeOverride = parts[3]?.trim() ?? "";
-	if (!title)
-		return { ok: false, error: `Missing title. Line: "${sanitized}"` };
+	if (!title) return { ok: false, error: `Missing title. Line: "${raw}"` };
 	if (!isValidDueDateInput(due))
 		return {
 			ok: false,
-			error: `Invalid due date: "${due}". Line: "${sanitized}"`,
+			error: `Invalid due date: "${due}". Line: "${raw}"`,
 		};
 	if (dayToken !== "a" && dayToken !== "b")
 		return {
 			ok: false,
-			error: `Day must be 'a' or 'b', got: "${dayToken}". Line: "${sanitized}"`,
+			error: `Day must be 'a' or 'b', got: "${dayToken}". Line: "${raw}"`,
 		};
 
 	const day = dayToken.toUpperCase();
