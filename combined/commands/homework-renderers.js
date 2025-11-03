@@ -46,8 +46,9 @@ export async function renderImage({ events, headerClass }) {
 	const baseTextCss = "text, tspan { font-family: 'Lexend'; }";
 	const rel = (ts) => {
 		const diff = ts - Date.now();
-		const future = diff >= 0;
-		if (!future) return "due";
+		if (diff < 0) return "due";
+		const secs = Math.round(diff / 1000);
+		if (secs < 60) return `in ${secs} sec`;
 		const mins = Math.round(diff / 60_000);
 		if (mins < 60) return `in ${mins} min`;
 		const hrs = Math.round(mins / 60);

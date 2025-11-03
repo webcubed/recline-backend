@@ -16,7 +16,10 @@ import {
 	handleSlashInteraction,
 } from "./commands/slash-commands.js";
 import { registerSlashCommands } from "./commands/register.js";
-import { refreshImagesDaily } from "./commands/homework-tracker.js";
+import {
+	refreshImagesDaily,
+	startAdaptiveImageUpdates,
+} from "./commands/homework-tracker.js";
 
 const version = fs
 	.readFileSync("./version.txt", "utf8")
@@ -112,6 +115,9 @@ client.once("ready", async () => {
 	};
 
 	scheduleDaily();
+
+	// Start adaptive updates for images with finer time granularity
+	startAdaptiveImageUpdates(client);
 });
 client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	if (newPresence.status === PresenceUpdateStatus.Offline) {

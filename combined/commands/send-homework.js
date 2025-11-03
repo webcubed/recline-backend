@@ -36,6 +36,7 @@ export const sendHomeworkCommand = new SlashCommandBuilder()
 			.setName("target")
 			.setDescription("Channel to post into (defaults to current)")
 			.addChannelTypes(ChannelType.GuildText)
+			.setRequired(false)
 	);
 
 const sessions = new Map();

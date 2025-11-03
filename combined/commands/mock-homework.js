@@ -24,6 +24,7 @@ export const mockHomeworkCommand = new SlashCommandBuilder()
 			.setName("target")
 			.setDescription("Channel to post into (defaults to current)")
 			.addChannelTypes(ChannelType.GuildText)
+			.setRequired(false)
 	);
 
 function buildMockEvents() {
