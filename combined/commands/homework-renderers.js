@@ -45,48 +45,67 @@ export async function renderImage({ events, headerClass }) {
 	const fontFaceCss = await getEmbeddedLexendCss();
 	const baseTextCss = "text, tspan { font-family: 'Lexend'; }";
 	const rel = (ts) => {
-		const diff = ts - Date.now();
+		const now = Date.now();
+		const diff = ts - now;
 		if (diff <= 0) return "due";
 		const secs = Math.ceil(diff / 1000);
-		if (secs < 60) return `in ${secs} sec`;
-		const mins = Math.round(diff / 60_000);
-		if (mins < 60) return `in ${mins} min`;
-		const hrs = Math.round(mins / 60);
-		if (hrs < 24) return `in ${hrs} hr${hrs === 1 ? "" : "s"}`;
-		const days = Math.round(hrs / 24);
-		return `in ${days} day${days === 1 ? "" : "s"}`;
+		if (secs > 60) {
+			const mins = Math.round(diff / 60_000);
+			if (mins < 60) return `in ${mins} min`;
+			const hrs = Math.round(mins / 60);
+			if (hrs < 24) return `in ${hrs} hr${hrs === 1 ? "" : "s"}`;
+			const days = Math.round(hrs / 24);
+			return `in ${days} day${days === 1 ? "" : "s"}`;
+		}
+
+		if (secs > 30) return "in 1 min";
+		if (secs > 15) return "in 30 sec";
+		if (secs > 10) return "in 15 sec";
+		return `in ${secs} sec`;
 	};
 
-	const rowHeight = 84;
-	const titleY = 44;
-	const marginUnderTitle = 56;
-	const startY = titleY + marginUnderTitle;
+	const urgencyColor = (ts) => {
+		const now = Date.now();
+		const diff = ts - now;
+		if (diff <= 0) return macchiato.red; // Due
+		const secs = Math.ceil(diff / 1000);
+		if (secs <= 60 * 60) return macchiato.red; // <= 1 hour
+		if (secs <= 24 * 60 * 60) return macchiato.peach; // <= 24 hours
+		const days = secs / (24 * 60 * 60);
+		if (days <= 3) return macchiato.yellow; // <= 3 days
+		return macchiato.green; // More than 3 days
+	};
+
+	const rowHeight = 72;
+	const titleY = 36;
+	const subTitleY = titleY + 22;
+	const marginUnderTitle = 44; // Space below subtitle
+	const startY = subTitleY + marginUnderTitle;
 
 	const items = events
 		.sort((a, b) => a.dueTimestamp - b.dueTimestamp)
 		.map(
 			(event, index) => `
 		<g transform="translate(24, ${startY + index * rowHeight})">
-			<rect x="0" y="-32" rx="10" ry="10" width="760" height="64" fill="${macchiato.surface0}"/>
-			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="18" fill="${macchiato.subtext0}">${
+			<rect x="0" y="-28" rx="10" ry="10" width="672" height="56" fill="${macchiato.surface0}"/>
+			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="17" fill="${macchiato.subtext0}">${
 				event.title
 			}</text>
-			<text x="740" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="16" fill="${macchiato.blue}"><tspan>${formatInTimeZone(
+			<text x="652" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="15" font-weight="700" fill="${macchiato.blue}"><tspan>${formatInTimeZone(
 				new Date(event.dueTimestamp),
 				"America/New_York",
 				"MM/dd/yyyy"
 			)}</tspan></text>
-			<text x="740" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="14" fill="${macchiato.subtext1}"><tspan>${rel(
-				event.dueTimestamp
-			)}</tspan></text>
+			<text x="652" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="13"><tspan fill="${urgencyColor(event.dueTimestamp)}">${rel(event.dueTimestamp)}</tspan></text>
 		</g>`
 		)
 		.join("");
 
-	const width = 808;
+	const width = 720;
 	const height = startY + events.length * rowHeight + 24;
 	const resolvedClass = headerClass || events[0]?.classKey || "Class";
-	const headerText = `Homework — ${resolvedClass}`;
+	const headerText = `Homework`;
+	const subHeaderText = `${resolvedClass}`;
 	const svg = `<?xml version="1.0" encoding="UTF-8"?>
 	<svg width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" xmlns="http://www.w3.org/2000/svg">
 		<defs>
@@ -96,7 +115,8 @@ export async function renderImage({ events, headerClass }) {
 			]]></style>
 		</defs>
 		<rect width="100%" height="100%" fill="${macchiato.base}"/>
-		<text x="24" y="${titleY}" font-family="Lexend" font-size="30" font-weight="800" fill="${macchiato.lavender}">${headerText}</text>
+		<text x="24" y="${titleY}" font-family="Lexend" font-size="28" font-weight="800" fill="${macchiato.lavender}">${headerText}</text>
+		<text x="24" y="${subTitleY}" font-family="Lexend" font-size="16" font-weight="500" fill="${macchiato.subtext0}">${subHeaderText}</text>
 		${items}
 	</svg>`;
 
