@@ -16,20 +16,12 @@ function getGranularityForRecord(record, now = Date.now()) {
 	const upcoming = record.events.filter((event) => event.dueTimestamp > now);
 	if (upcoming.length === 0) return null;
 
-	// If any event has non-zero seconds, treat as seconds precision
-	for (const event of upcoming) {
-		const secs = Math.floor(event.dueTimestamp / 1000) % 60;
-		const ms = event.dueTimestamp % 1000;
-		if (ms !== 0 || secs !== 0) return "second";
-	}
-
-	// If any event has non-zero minutes (but zero seconds), minute precision
-	for (const event of upcoming) {
-		const mins = Math.floor(event.dueTimestamp / 60_000) % 60;
-		if (mins !== 0) return "minute";
-	}
-
-	// Otherwise hour precision
+	// Use remaining time to decide cadence: seconds for <1m, minutes for <1h, else hours
+	const minRemaining = Math.min(
+		...upcoming.map((event) => event.dueTimestamp - now)
+	);
+	if (minRemaining <= 60 * 1000) return "second";
+	if (minRemaining <= 60 * 60 * 1000) return "minute";
 	return "hour";
 }
 
@@ -153,11 +145,43 @@ async function refreshBucket(client, type) {
 export function startAdaptiveImageUpdates(client) {
 	// Seconds bucket: refresh every second
 	setInterval(() => {
+		// Promote items that just crossed into <1 minute from the minute bucket
+		for (const messageId of buckets.minute.values()) {
+			const record = tracked.get(messageId);
+			if (!record) {
+				buckets.minute.delete(messageId);
+				continue;
+			}
+
+			const granularity = getGranularityForRecord(record);
+			if (granularity === "second") {
+				buckets.minute.delete(messageId);
+				buckets.second.add(messageId);
+				record.bucket = "second";
+			}
+		}
+
 		refreshBucket(client, "second");
 	}, 1000);
 
 	// Minutes bucket: refresh every minute
 	setInterval(() => {
+		// Promote items that just crossed into <1 hour from the hour bucket
+		for (const messageId of buckets.hour.values()) {
+			const record = tracked.get(messageId);
+			if (!record) {
+				buckets.hour.delete(messageId);
+				continue;
+			}
+
+			const granularity = getGranularityForRecord(record);
+			if (granularity === "minute") {
+				buckets.hour.delete(messageId);
+				buckets.minute.add(messageId);
+				record.bucket = "minute";
+			}
+		}
+
 		refreshBucket(client, "minute");
 	}, 60 * 1000);
 
