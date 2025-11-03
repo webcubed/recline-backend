@@ -123,7 +123,6 @@ export async function handleTypeHomework(interaction) {
 			.map((s) => s.trim())
 			.filter(Boolean);
 		const dms = [];
-		let added = 0;
 
 		for (const line of lines) {
 			if (!classKey) {
@@ -147,7 +146,6 @@ export async function handleTypeHomework(interaction) {
 			const parsed = parseEventLine(line, classKey);
 			if (parsed.ok) {
 				events.push(parsed.event);
-				added++;
 			} else {
 				dms.push(parsed.error || `Couldn't parse line: "${line}"`);
 			}
@@ -167,8 +165,8 @@ export async function handleTypeHomework(interaction) {
 			} catch {}
 		}
 
-		// Update ephemeral preview if we added any events
-		if (added > 0 && classKey) {
+		// Update ephemeral preview if section is set (show 0+ events)
+		if (classKey) {
 			try {
 				const preview = buildPreviewContent({ events, classKey, final: false });
 				await interaction.editReply({ content: preview });
