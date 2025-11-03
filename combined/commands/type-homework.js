@@ -238,12 +238,15 @@ export async function handleTypeHomework(interaction) {
 
 export function parseEventLine(line, classKey) {
 	// Title -|- Month D, YYYY -|- a|b -|- [HH:MM(:SS)]
-	// Normalize common Unicode variants for hyphens and vertical bars
-	const normalized = line
-		.replaceAll(/[–—‑−]/gu, "-") // En dash, em dash, non-breaking hyphen, minus sign
-		.replaceAll(/[|¦│┃︱︲]/gu, "|"); // Variants of vertical bar
-	// Remove zero-width characters that sometimes sneak in from mobile keyboards
-	const sanitized = normalized.replaceAll(/\u200B|\u200C|\u200D|\uFEFF/gu, "");
+	// Normalize Unicode width/compatibility and normalize common hyphens/bars
+	const nk = String(line ?? "").normalize("NFKC");
+	const normalized = nk
+		// Hyphens/dashes → '-'
+		.replaceAll(/[‐‑‒–—−﹘]/gu, "-")
+		// Vertical bars → '|'
+		.replaceAll(/[¦‖│┃❘｜︱︲⏐]/gu, "|");
+	// Remove format/zero-width characters that sometimes sneak in from mobile keyboards
+	const sanitized = normalized.replaceAll(/\p{Cf}/gu, "");
 	const parts = sanitized.split(/\s*-\s*\|\s*-\s*/u);
 	if (parts.length < 3 || parts.length > 4) {
 		return {
