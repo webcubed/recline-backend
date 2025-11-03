@@ -129,7 +129,9 @@ export async function handleTypeHomework(interaction) {
 				// Expect a section number as the first non-empty line across all messages
 				const sec = Number.parseInt(line, 10);
 				if (!Number.isFinite(sec) || !SECTION_TO_CLASSKEY.has(sec)) {
-					dms.push(`Expected a section number (1-7), got: "${line}"`);
+					dms.push(
+						`Section parse error: expected a section number (1-7). Got line: "${line}"`
+					);
 				} else {
 					classKey = SECTION_TO_CLASSKEY.get(sec);
 				}
@@ -143,11 +145,17 @@ export async function handleTypeHomework(interaction) {
 				break;
 			}
 
-			const parsed = parseEventLine(line, classKey);
-			if (parsed.ok) {
-				events.push(parsed.event);
-			} else {
-				dms.push(parsed.error || `Couldn't parse line: "${line}"`);
+			try {
+				const parsed = parseEventLine(line, classKey);
+				if (parsed.ok) {
+					events.push(parsed.event);
+				} else {
+					dms.push(parsed.error || `Couldn't parse line: "${line}"`);
+				}
+			} catch (error) {
+				dms.push(
+					`Exception while parsing: ${error?.message ?? String(error)} | line: "${line}"`
+				);
 			}
 		}
 
@@ -228,7 +236,7 @@ export async function handleTypeHomework(interaction) {
 
 // ------------ Helpers ------------------------------------------------------
 
-function parseEventLine(line, classKey) {
+export function parseEventLine(line, classKey) {
 	// Title -|- Month D, YYYY -|- a|b -|- [HH:MM(:SS)]
 	// Normalize common Unicode variants for hyphens and vertical bars
 	const normalized = line
