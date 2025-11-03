@@ -242,20 +242,32 @@ export function parseEventLine(line, classKey) {
 	const normalized = line
 		.replaceAll(/[–—‑−]/gu, "-") // En dash, em dash, non-breaking hyphen, minus sign
 		.replaceAll(/[|¦│┃︱︲]/gu, "|"); // Variants of vertical bar
-	const parts = normalized.split(/\s*-\s*\|\s*-\s*/u);
+	// Remove zero-width characters that sometimes sneak in from mobile keyboards
+	const sanitized = normalized.replaceAll(/\u200B|\u200C|\u200D|\uFEFF/gu, "");
+	const parts = sanitized.split(/\s*-\s*\|\s*-\s*/u);
 	if (parts.length < 3 || parts.length > 4) {
-		return { ok: false, error: `Expected 3 or 4 parts separated by -|-` };
+		return {
+			ok: false,
+			error: `Expected 3 or 4 parts separated by -|-. Got ${parts.length} parts.\nOriginal: "${line}"\nNormalized: "${sanitized}"`,
+		};
 	}
 
 	const title = parts[0]?.trim();
 	const due = parts[1]?.trim();
 	const dayToken = parts[2]?.trim().toLowerCase();
 	const timeOverride = parts[3]?.trim() ?? "";
-	if (!title) return { ok: false, error: "Missing title" };
+	if (!title)
+		return { ok: false, error: `Missing title. Line: "${sanitized}"` };
 	if (!isValidDueDateInput(due))
-		return { ok: false, error: `Invalid due date: "${due}"` };
+		return {
+			ok: false,
+			error: `Invalid due date: "${due}". Line: "${sanitized}"`,
+		};
 	if (dayToken !== "a" && dayToken !== "b")
-		return { ok: false, error: `Day must be 'a' or 'b', got: "${dayToken}"` };
+		return {
+			ok: false,
+			error: `Day must be 'a' or 'b', got: "${dayToken}". Line: "${sanitized}"`,
+		};
 
 	const day = dayToken.toUpperCase();
 	const event = computeEvent({ title, due, time: timeOverride, classKey, day });
