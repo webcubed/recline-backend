@@ -232,7 +232,11 @@ export async function handleTypeHomework(interaction) {
 
 function parseEventLine(line, classKey) {
 	// Title -|- Month D, YYYY -|- a|b -|- [HH:MM(:SS)]
-	const parts = line.split(/\s*-\s*\|\s*-\s*/u);
+	// Normalize common Unicode variants for hyphens and vertical bars
+	const normalized = line
+		.replaceAll(/[–—‑−]/gu, "-") // En dash, em dash, non-breaking hyphen, minus sign
+		.replaceAll(/[|¦│┃︱︲]/gu, "|"); // Variants of vertical bar
+	const parts = normalized.split(/\s*-\s*\|\s*-\s*/u);
 	if (parts.length < 3 || parts.length > 4) {
 		return { ok: false, error: `Expected 3 or 4 parts separated by -|-` };
 	}
