@@ -4,6 +4,7 @@ import {
 	SlashCommandBuilder,
 } from "discord.js";
 import { renderEmbed, renderImage, renderText } from "./homework-renderers.js";
+import { trackImagePost } from "./homework-tracker.js";
 
 export const mockHomeworkCommand = new SlashCommandBuilder()
 	.setName("testhomework")
@@ -175,6 +176,15 @@ export async function handleMockHomework(interaction) {
 		const events = buildMockEventsWithPrecision(prec);
 		const payload = await buildPayload(format, events, headerClass);
 		const message = await target.send(payload);
+		if (format === "image") {
+			await trackImagePost({
+				channelId: message.channelId,
+				messageId: message.id,
+				events,
+				classKey: headerClass,
+			});
+		}
+
 		return `• ${prec}: https://discord.com/channels/${message.guildId}/${message.channelId}/${message.id}`;
 	};
 
