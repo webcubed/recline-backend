@@ -61,6 +61,9 @@ export function scheduleDailyPoster(client) {
 	scheduleNext();
 }
 
+// In-memory per-process lock to prevent overlapping reposts per channel
+const channelPostLocks = new Set();
+
 export async function postDailyForAll(client) {
 	const store = await loadEventsStore();
 	const guilds = client.guilds.cache;
@@ -156,6 +159,8 @@ export async function bumpDailyIfNeeded({ client, channelId, authorIsBot }) {
 		if (authorIsBot) return false;
 		const allowed = allowedSectionsForChannel(channelId);
 		if (allowed.length === 0) return false;
+		if (channelPostLocks.has(channelId)) return false;
+		channelPostLocks.add(channelId);
 		const store = await loadEventsStore();
 		ensureChannel(store, channelId, allowed);
 		const chData = store.channels?.[channelId];
@@ -185,6 +190,8 @@ export async function bumpDailyIfNeeded({ client, channelId, authorIsBot }) {
 		return true;
 	} catch {
 		return false;
+	} finally {
+		channelPostLocks.delete(channelId);
 	}
 }
 
@@ -589,6 +596,14 @@ async function refreshDailyAfterAdd(interaction, store) {
 	await interaction.deferReply({ ephemeral: true });
 	try {
 		const channelId = interaction.channel.id;
+		if (channelPostLocks.has(channelId)) {
+			await interaction.editReply({
+				content: "Busy, please retry in a moment.",
+			});
+			return;
+		}
+
+		channelPostLocks.add(channelId);
 		const channelData = store.channels?.[channelId];
 		// Prune any past-due events before refreshing
 		prunePastEvents({ store, channelId, cutoffMs: getEtStartOfTodayUtcMs() });
@@ -622,6 +637,8 @@ async function refreshDailyAfterAdd(interaction, store) {
 		await interaction.editReply({
 			content: `Saved, but failed to refresh daily: ${error?.message ?? "unknown"}`,
 		});
+	} finally {
+		channelPostLocks.delete(interaction.channel.id);
 	}
 }
 
