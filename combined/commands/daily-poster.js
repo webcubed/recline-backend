@@ -219,7 +219,8 @@ export async function handleDailyInteraction(interaction) {
 
 		if (
 			interaction.type === InteractionType.ModalSubmit &&
-			interaction.customId
+			(interaction.customId === CUSTOM_ID_MODAL_DAILY ||
+				interaction.customId.startsWith(CUSTOM_ID_MODAL_ADHOC_PREFIX))
 		) {
 			await handleAddModalSubmit(interaction);
 			return true;
