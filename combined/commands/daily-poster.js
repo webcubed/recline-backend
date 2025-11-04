@@ -25,6 +25,10 @@ import {
 import { getStartTimeForPeriod } from "./bell-schedule.js";
 
 const ET = "America/New_York";
+const CUSTOM_ID_DAILY_BUTTON = "hw_daily_add";
+const CUSTOM_ID_ADHOC_PREFIX = "hw_add_sec_"; // E.g., hw_add_sec_5 for Section 5 posts
+const CUSTOM_ID_MODAL_DAILY = "hw_daily_add_modal";
+const CUSTOM_ID_MODAL_ADHOC_PREFIX = "hw_add_modal_sec_"; // E.g., hw_add_modal_sec_5
 
 export function scheduleDailyPoster(client) {
 	const scheduleNext = () => {
@@ -97,7 +101,7 @@ export async function postDailyForChannel({ client, channelId, store }) {
 	const components = [
 		new ActionRowBuilder().addComponents(
 			new ButtonBuilder()
-				.setCustomId("hw_daily_add")
+				.setCustomId(CUSTOM_ID_DAILY_BUTTON)
 				.setStyle(ButtonStyle.Primary)
 				.setLabel("Add/Edit")
 		),
@@ -149,30 +153,73 @@ export async function bumpDailyIfNeeded({
 
 export async function handleDailyInteraction(interaction) {
 	try {
-		if (interaction.isButton() && interaction.customId === "hw_daily_add") {
-			if (!isChannelAllowed(interaction.channel.id)) {
-				await interaction.reply({
-					content: "This channel isn't configured for homework.",
-					ephemeral: true,
-				});
+		if (interaction.isButton() && interaction.customId) {
+			// Two button types:
+			// 1) Daily: hw_daily_add (asks for Section)
+			// 2) Ad-hoc post: hw_add_sec_{section} (no Section in modal)
+			if (interaction.customId === CUSTOM_ID_DAILY_BUTTON) {
+				if (!isChannelAllowed(interaction.channel.id)) {
+					await interaction.reply({
+						content: "This channel isn't configured for homework.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				if (!hasMonitorRole(interaction.member)) {
+					await interaction.reply({
+						content: "You need the monitor role to edit.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				await interaction.showModal(buildAddModal({ includeSection: true }));
 				return true;
 			}
 
-			if (!hasMonitorRole(interaction.member)) {
-				await interaction.reply({
-					content: "You need the monitor role to edit.",
-					ephemeral: true,
-				});
+			if (interaction.customId.startsWith(CUSTOM_ID_ADHOC_PREFIX)) {
+				if (!isChannelAllowed(interaction.channel.id)) {
+					await interaction.reply({
+						content: "This channel isn't configured for homework.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				if (!hasMonitorRole(interaction.member)) {
+					await interaction.reply({
+						content: "You need the monitor role to edit.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				const section = Number.parseInt(
+					interaction.customId.slice(CUSTOM_ID_ADHOC_PREFIX.length),
+					10
+				);
+				if (!Number.isFinite(section) || section < 1 || section > 7) {
+					await interaction.reply({
+						content: "Invalid section.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				await interaction.showModal(
+					buildAddModal({
+						includeSection: false,
+						modalId: `${CUSTOM_ID_MODAL_ADHOC_PREFIX}${section}`,
+					})
+				);
 				return true;
 			}
-
-			await interaction.showModal(buildAddModal());
-			return true;
 		}
 
 		if (
 			interaction.type === InteractionType.ModalSubmit &&
-			interaction.customId === "hw_daily_add_modal"
+			interaction.customId
 		) {
 			await handleAddModalSubmit(interaction);
 			return true;
@@ -191,15 +238,11 @@ export async function handleDailyInteraction(interaction) {
 	return false;
 }
 
-function buildAddModal() {
+function buildAddModal(options) {
+	const { includeSection = true, modalId } = options ?? {};
 	const modal = new ModalBuilder()
-		.setCustomId("hw_daily_add_modal")
-		.setTitle("Add homework to daily");
-	const section = new TextInputBuilder()
-		.setCustomId("hw_section")
-		.setLabel("Section (1-7)")
-		.setStyle(TextInputStyle.Short)
-		.setRequired(true);
+		.setCustomId(modalId ?? CUSTOM_ID_MODAL_DAILY)
+		.setTitle("Add homework");
 	const title = new TextInputBuilder()
 		.setCustomId("hw_title")
 		.setLabel("Title")
@@ -221,13 +264,22 @@ function buildAddModal() {
 		.setStyle(TextInputStyle.Short)
 		.setRequired(false);
 
-	return modal.addComponents(
-		new ActionRowBuilder().addComponents(section),
+	const rows = [
 		new ActionRowBuilder().addComponents(title),
 		new ActionRowBuilder().addComponents(due),
 		new ActionRowBuilder().addComponents(day),
-		new ActionRowBuilder().addComponents(time)
-	);
+		new ActionRowBuilder().addComponents(time),
+	];
+	if (includeSection) {
+		const section = new TextInputBuilder()
+			.setCustomId("hw_section")
+			.setLabel("Section (1-7)")
+			.setStyle(TextInputStyle.Short)
+			.setRequired(true);
+		rows.unshift(new ActionRowBuilder().addComponents(section));
+	}
+
+	return modal.addComponents(...rows);
 }
 
 async function handleAddModalSubmit(interaction) {
@@ -239,8 +291,17 @@ async function handleAddModalSubmit(interaction) {
 		return;
 	}
 
-	const sectionString = interaction.fields.getTextInputValue("hw_section");
-	const section = Number.parseInt(sectionString, 10);
+	let section;
+	if (interaction.customId.startsWith(CUSTOM_ID_MODAL_ADHOC_PREFIX)) {
+		section = Number.parseInt(
+			interaction.customId.slice(CUSTOM_ID_MODAL_ADHOC_PREFIX.length),
+			10
+		);
+	} else {
+		const sectionString = interaction.fields.getTextInputValue("hw_section");
+		section = Number.parseInt(sectionString, 10);
+	}
+
 	const title = interaction.fields.getTextInputValue("hw_title");
 	const due = interaction.fields.getTextInputValue("hw_due");
 	const day = interaction.fields
@@ -288,17 +349,42 @@ async function handleAddModalSubmit(interaction) {
 
 	await saveEventsStore(store);
 
-	// Refresh daily post now
-	await interaction.deferReply({ ephemeral: true });
-	await postDailyForChannel({
-		client: interaction.client,
-		channelId: interaction.channel.id,
-		store,
-	});
-	await saveEventsStore(store);
-	await interaction.editReply({
-		content: "Added event and refreshed daily post.",
-	});
+	// If this came from daily post flow, replace last daily and post a fresh one.
+	if (interaction.customId === CUSTOM_ID_MODAL_DAILY) {
+		await interaction.deferReply({ ephemeral: true });
+		try {
+			const channelData = store.channels?.[interaction.channel.id];
+			const lastId = channelData?.lastPostId;
+			if (lastId) {
+				try {
+					const channel = await interaction.client.channels.fetch(
+						interaction.channel.id
+					);
+					const message = await channel.messages.fetch(lastId);
+					await message.delete();
+				} catch {}
+			}
+
+			await postDailyForChannel({
+				client: interaction.client,
+				channelId: interaction.channel.id,
+				store,
+			});
+			await saveEventsStore(store);
+			await interaction.editReply({
+				content: "Added event and refreshed daily post.",
+			});
+			return;
+		} catch (error) {
+			await interaction.editReply({
+				content: `Saved, but failed to refresh daily: ${error?.message ?? "unknown"}`,
+			});
+			return;
+		}
+	}
+
+	// Ad-hoc: only store, do not touch the existing post or daily
+	await interaction.reply({ content: "Saved.", ephemeral: true });
 }
 
 // -------------- helpers (duplicated from type/send for now) --------------
