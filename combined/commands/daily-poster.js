@@ -580,6 +580,17 @@ const SECTION_TO_CLASSKEY = new Map([
 	[7, "chan 9/10"],
 ]);
 
+// Reverse map for labeling (classKey -> section number)
+const CLASSKEY_TO_SECTION = new Map([
+	["maggio 2/3", 1],
+	["maggio 3/4", 2],
+	["hua 5/6", 3],
+	["maggio 6/7", 4],
+	["chan 8/9", 5],
+	["hua 7/8", 6],
+	["chan 9/10", 7],
+]);
+
 function isValidDueDateInput(input) {
 	if (!input || typeof input !== "string") return false;
 	const cleaned = input.trim();
