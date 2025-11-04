@@ -66,6 +66,8 @@ export function scheduleDailyPoster(client) {
 
 // In-memory per-process lock to prevent overlapping reposts per channel
 const channelPostLocks = new Set();
+// If bump is requested while a channel lock is held, schedule a single retry
+const channelPendingBumps = new Set();
 
 export async function postDailyForAll(client) {
 	const store = await loadEventsStore();
@@ -174,7 +176,22 @@ export async function bumpDailyIfNeeded({ client, channelId, authorIsBot }) {
 		if (authorIsBot) return false;
 		const allowed = allowedSectionsForChannel(channelId);
 		if (allowed.length === 0) return false;
-		if (channelPostLocks.has(channelId)) return false;
+		if (channelPostLocks.has(channelId)) {
+			// Ensure we retry once after the current bump completes to handle rapid spam.
+			if (!channelPendingBumps.has(channelId)) {
+				channelPendingBumps.add(channelId);
+				setTimeout(async () => {
+					channelPendingBumps.delete(channelId);
+					// Fire-and-forget retry; authorIsBot=false to allow the bump to run
+					try {
+						await bumpDailyIfNeeded({ client, channelId, authorIsBot: false });
+					} catch {}
+				}, 250);
+			}
+
+			return false;
+		}
+
 		channelPostLocks.add(channelId);
 		const store = await loadEventsStore();
 		ensureChannel(store, channelId, allowed);
