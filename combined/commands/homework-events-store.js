@@ -12,8 +12,11 @@ const KEY = "homeworkEventsV1";
 // 	channels: {
 // 		[channelId]: {
 // 			allowedSections: number[],
+// 			// Legacy (single daily):
 // 			lastPostId?: string,
 // 			lastPostDate?: string, // yyyy-mm-dd in ET
+// 			// New per-section tracking:
+// 			lastPosts?: { [section: string]: { id: string, date: string } },
 // 			events: { [sectionNumber: string]: Array<{ title:string, dueTimestamp:number, classKey:string }> }
 // 		}
 // 	}
@@ -71,6 +74,7 @@ export function ensureChannel(store, channelId, allowedSections = []) {
 		events: {},
 		lastPostId: undefined,
 		lastPostDate: undefined,
+		lastPosts: {},
 	};
 	return store.channels[channelId];
 }
@@ -121,4 +125,17 @@ export function setLastPost(store, channelId, messageId, dateYmd) {
 	const channel = ensureChannel(store, channelId);
 	channel.lastPostId = messageId;
 	channel.lastPostDate = dateYmd;
+}
+
+export function setLastPostForSection(parameters) {
+	const { store, channelId, section, messageId, dateYmd } = parameters;
+	const channel = ensureChannel(store, channelId);
+	channel.lastPosts ||= {};
+	channel.lastPosts[String(section)] = { id: messageId, date: dateYmd };
+}
+
+export function getLastPostForSection({ store, channelId, section }) {
+	const channel = ensureChannel(store, channelId);
+	const entry = channel.lastPosts?.[String(section)];
+	return entry ?? null;
 }

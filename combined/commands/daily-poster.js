@@ -15,7 +15,7 @@ import {
 	listAllEvents,
 	loadEventsStore,
 	saveEventsStore,
-	setLastPost,
+	setLastPostForSection,
 	removeEvents,
 } from "./homework-events-store.js";
 import {
@@ -34,10 +34,13 @@ import {
 
 const ET = "America/New_York";
 
-const CUSTOM_ID_DAILY_BUTTON = "hw_daily_add";
-const CUSTOM_ID_DAILY_MANAGE = "hw_daily_manage";
+const CUSTOM_ID_DAILY_BUTTON = "hw_daily_add"; // Legacy (no section)
+const CUSTOM_ID_DAILY_BUTTON_SEC_PREFIX = "hw_daily_add_sec_"; // E.g., hw_daily_add_sec_7
+const CUSTOM_ID_DAILY_MANAGE = "hw_daily_manage"; // Legacy (no section)
+const CUSTOM_ID_DAILY_MANAGE_SEC_PREFIX = "hw_daily_manage_sec_"; // E.g., hw_daily_manage_sec_7
 const CUSTOM_ID_ADHOC_PREFIX = "hw_add_sec_"; // E.g., hw_add_sec_5 for Section 5 posts
-const CUSTOM_ID_MODAL_DAILY = "hw_daily_add_modal";
+const CUSTOM_ID_MODAL_DAILY = "hw_daily_add_modal"; // Legacy modal
+const CUSTOM_ID_MODAL_DAILY_SEC_PREFIX = "hw_daily_add_modal_sec_"; // E.g., hw_daily_add_modal_sec_7
 const CUSTOM_ID_MODAL_ADHOC_PREFIX = "hw_add_modal_sec_"; // E.g., hw_add_modal_sec_5 or hw_add_modal_sec_5_123456
 const CUSTOM_ID_DAILY_RM_SELECT = "hw_daily_rm_select";
 
@@ -82,31 +85,19 @@ export async function postDailyForAll(client) {
 	await saveEventsStore(store);
 }
 
-export async function postDailyForChannel({ client, channelId, store }) {
+async function postDailyForSection({ client, channelId, store, section }) {
 	const channel = await client.channels.fetch(channelId);
 	if (!channel?.isTextBased?.()) return null;
 
-	const allowed = allowedSectionsForChannel(channelId);
-	ensureChannel(store, channelId, allowed);
-
-	// Compute ET start-of-today (UTC millis) and prune past-due events from the store
 	const startMs = getEtStartOfTodayUtcMs();
-	prunePastEvents({ store, channelId, cutoffMs: startMs });
-
-	const all = listAllEvents(store, channelId);
 	const todayYmd = formatInTimeZone(new Date(), ET, "yyyy-MM-dd");
-	const filtered = all.filter((event) => event.dueTimestamp >= startMs);
+	const sectionKey = String(section);
+	const list = store.channels?.[channelId]?.events?.[sectionKey] || [];
+	const filtered = list.filter((event) => event.dueTimestamp >= startMs);
 	if (filtered.length === 0) return null;
 
-	// Build a header that shows the classes/sections represented today
-	const uniqueKeys = [...new Set(filtered.map((event) => event.classKey))];
-	const classesLabel = uniqueKeys
-		.map((key) => {
-			const section = CLASSKEY_TO_SECTION.get(key);
-			return section ? `${key} — Section ${section}` : key;
-		})
-		.join(" • ");
-	const header = `${classesLabel || "Daily Homework"} — ${todayYmd}`;
+	const classKey = SECTION_TO_CLASSKEY.get(section);
+	const header = `${classKey ? `${classKey} — Section ${section}` : `Section ${section}`} — ${todayYmd}`;
 	const payload = await renderForDaily({
 		events: filtered,
 		headerClass: header,
@@ -114,11 +105,11 @@ export async function postDailyForChannel({ client, channelId, store }) {
 	payload.components = [
 		new ActionRowBuilder().addComponents(
 			new ButtonBuilder()
-				.setCustomId(CUSTOM_ID_DAILY_BUTTON)
+				.setCustomId(`${CUSTOM_ID_DAILY_BUTTON_SEC_PREFIX}${section}`)
 				.setStyle(ButtonStyle.Primary)
 				.setLabel("Add/Edit"),
 			new ButtonBuilder()
-				.setCustomId(CUSTOM_ID_DAILY_MANAGE)
+				.setCustomId(`${CUSTOM_ID_DAILY_MANAGE_SEC_PREFIX}${section}`)
 				.setStyle(ButtonStyle.Secondary)
 				.setLabel("Manage")
 		),
@@ -126,7 +117,13 @@ export async function postDailyForChannel({ client, channelId, store }) {
 
 	try {
 		const sent = await channel.send(payload);
-		setLastPost(store, channelId, sent.id, todayYmd);
+		setLastPostForSection({
+			store,
+			channelId,
+			section,
+			messageId: sent.id,
+			dateYmd: todayYmd,
+		});
 		try {
 			await trackImagePost({
 				channelId: sent.channelId,
@@ -140,6 +137,24 @@ export async function postDailyForChannel({ client, channelId, store }) {
 	} catch {
 		return null;
 	}
+}
+
+export async function postDailyForChannel({ client, channelId, store }) {
+	const allowed = allowedSectionsForChannel(channelId);
+	ensureChannel(store, channelId, allowed);
+	// Compute ET start-of-today (UTC millis) and prune past-due events from the store
+	const startMs = getEtStartOfTodayUtcMs();
+	prunePastEvents({ store, channelId, cutoffMs: startMs });
+	const tasks = allowed.map((section) =>
+		postDailyForSection({ client, channelId, store, section })
+	);
+	const results = await Promise.allSettled(tasks);
+	let any = null;
+	for (const r of results) {
+		if (r.status === "fulfilled" && r.value) any = r.value;
+	}
+
+	return any;
 }
 
 async function renderForDaily({ events, headerClass }) {
@@ -164,21 +179,48 @@ export async function bumpDailyIfNeeded({ client, channelId, authorIsBot }) {
 		const store = await loadEventsStore();
 		ensureChannel(store, channelId, allowed);
 		const chData = store.channels?.[channelId];
-		const lastId = chData?.lastPostId;
-		const lastDate = chData?.lastPostDate;
 		const todayYmd = formatInTimeZone(new Date(), ET, "yyyy-MM-dd");
-		// Only delete the previous daily if it is from today; keep yesterday's post for history
-		if (lastId && lastDate === todayYmd) {
-			try {
-				const channel = await client.channels.fetch(channelId);
-				const message = await channel.messages.fetch(lastId);
-				try {
-					untrack(lastId);
-				} catch {}
+		// Delete today's per-section daily posts only; preserve history
+		const bySection = chData?.lastPosts || {};
+		const deletionTasks = [];
+		for (const [, entry] of Object.entries(bySection)) {
+			if (entry?.date !== todayYmd) continue;
+			const lastId = entry?.id;
+			if (!lastId) continue;
+			deletionTasks.push(
+				(async () => {
+					try {
+						const channel = await client.channels.fetch(channelId);
+						const message = await channel.messages.fetch(lastId);
+						try {
+							untrack(lastId);
+						} catch {}
 
-				await message.delete();
-			} catch {}
+						await message.delete();
+					} catch {}
+				})()
+			);
 		}
+
+		// Legacy: also delete single-daily post from today if present
+		if (chData?.lastPostId && chData?.lastPostDate === todayYmd) {
+			const legacyId = chData.lastPostId;
+			deletionTasks.push(
+				(async () => {
+					try {
+						const channel = await client.channels.fetch(channelId);
+						const message = await channel.messages.fetch(legacyId);
+						try {
+							untrack(legacyId);
+						} catch {}
+
+						await message.delete();
+					} catch {}
+				})()
+			);
+		}
+
+		await Promise.allSettled(deletionTasks);
 
 		// Also delete any ad-hoc posts previously sent in this channel
 		try {
@@ -220,6 +262,43 @@ export async function handleDailyInteraction(interaction) {
 				return true;
 			}
 
+			// Section-scoped daily Add/Edit button
+			if (interaction.customId.startsWith(CUSTOM_ID_DAILY_BUTTON_SEC_PREFIX)) {
+				if (!isChannelAllowed(interaction.channel.id)) {
+					await interaction.reply({
+						content: "This channel isn't configured for homework.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				if (!hasMonitorRole(interaction.member)) {
+					await interaction.reply({
+						content: "You need the monitor role to edit.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				const sec = Number.parseInt(
+					interaction.customId.slice(CUSTOM_ID_DAILY_BUTTON_SEC_PREFIX.length),
+					10
+				);
+				if (!Number.isFinite(sec) || sec < 1 || sec > 7) {
+					await interaction.reply({
+						content: "Invalid section.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				const modalId = `${CUSTOM_ID_MODAL_DAILY_SEC_PREFIX}${sec}`;
+				await interaction.showModal(
+					buildAddModal({ includeSection: false, modalId })
+				);
+				return true;
+			}
+
 			if (interaction.customId.startsWith(CUSTOM_ID_ADHOC_PREFIX)) {
 				if (!isChannelAllowed(interaction.channel.id)) {
 					await interaction.reply({
@@ -257,7 +336,10 @@ export async function handleDailyInteraction(interaction) {
 				return true;
 			}
 
-			if (interaction.customId === CUSTOM_ID_DAILY_MANAGE) {
+			if (
+				interaction.customId === CUSTOM_ID_DAILY_MANAGE ||
+				interaction.customId.startsWith(CUSTOM_ID_DAILY_MANAGE_SEC_PREFIX)
+			) {
 				if (!isChannelAllowed(interaction.channel.id)) {
 					await interaction.reply({
 						content: "This channel isn't configured for homework.",
@@ -279,9 +361,26 @@ export async function handleDailyInteraction(interaction) {
 				const allowed = allowedSectionsForChannel(interaction.channel.id);
 				ensureChannel(store, interaction.channel.id, allowed);
 				const cutoff = getEtStartOfTodayUtcMs();
-				const all = listAllEvents(store, interaction.channel.id)
-					.filter((event) => event.dueTimestamp >= cutoff)
-					.slice(0, 25);
+				let sectionFilter;
+				if (
+					interaction.customId.startsWith(CUSTOM_ID_DAILY_MANAGE_SEC_PREFIX)
+				) {
+					sectionFilter = Number.parseInt(
+						interaction.customId.slice(
+							CUSTOM_ID_DAILY_MANAGE_SEC_PREFIX.length
+						),
+						10
+					);
+				}
+
+				let all = listAllEvents(store, interaction.channel.id).filter(
+					(event) => event.dueTimestamp >= cutoff
+				);
+				if (Number.isFinite(sectionFilter)) {
+					all = all.filter((eventItem) => eventItem.section === sectionFilter);
+				}
+
+				all = all.slice(0, 25);
 				if (all.length === 0) {
 					await interaction.reply({
 						content: "No events to manage.",
@@ -315,6 +414,7 @@ export async function handleDailyInteraction(interaction) {
 		if (
 			interaction.type === InteractionType.ModalSubmit &&
 			(interaction.customId === CUSTOM_ID_MODAL_DAILY ||
+				interaction.customId.startsWith(CUSTOM_ID_MODAL_DAILY_SEC_PREFIX) ||
 				interaction.customId.startsWith(CUSTOM_ID_MODAL_ADHOC_PREFIX))
 		) {
 			await handleAddModalSubmit(interaction);
@@ -335,16 +435,26 @@ export async function handleDailyInteraction(interaction) {
 			}
 
 			const selections = interaction.values || [];
+			const selectedSections = new Set();
 			const store = await loadEventsStore();
-			for (const v of selections)
+			for (const v of selections) {
+				const sec = parseSectionFromRemovalValue(v);
+				if (Number.isFinite(sec)) selectedSections.add(sec);
 				processRemovalSelection({
 					store,
 					channelId: interaction.channel.id,
 					value: v,
 				});
+			}
 
 			await saveEventsStore(store);
-			await refreshDailyAfterAdd(interaction, store);
+			if (selectedSections.size === 1) {
+				const [onlySection] = [...selectedSections.values()];
+				await refreshDailyAfterAdd(interaction, store, onlySection);
+			} else {
+				await refreshDailyAfterAdd(interaction, store);
+			}
+
 			return true;
 		}
 	} catch (error) {
@@ -377,6 +487,16 @@ function processRemovalSelection({ store, channelId, value }) {
 			(ev) => ev.title === title && ev.dueTimestamp === dueTimestamp
 		);
 	} catch {}
+}
+
+function parseSectionFromRemovalValue(value) {
+	try {
+		const [sectionString] = String(value).split("|");
+		const section = Number.parseInt(sectionString, 10);
+		return section;
+	} catch {
+		return Number.NaN;
+	}
 }
 
 function buildAddModal(options) {
@@ -446,6 +566,13 @@ async function handleAddModalSubmit(interaction) {
 		} else {
 			section = Number.parseInt(rest, 10);
 		}
+	} else if (
+		interaction.customId.startsWith(CUSTOM_ID_MODAL_DAILY_SEC_PREFIX)
+	) {
+		const secString = interaction.customId.slice(
+			CUSTOM_ID_MODAL_DAILY_SEC_PREFIX.length
+		);
+		section = Number.parseInt(secString, 10);
 	} else {
 		// Daily modal: infer section from channel's allowed sections; pick the first.
 		const allowed = allowedSectionsForChannel(interaction.channel.id);
@@ -535,7 +662,6 @@ async function handleAddModalSubmit(interaction) {
 						events: record.events,
 						headerClass: record.classKey,
 					});
-					// eslint-disable-next-line max-depth
 					try {
 						await trackImagePost({
 							channelId: record.channelId,
@@ -581,6 +707,11 @@ async function handleAddModalSubmit(interaction) {
 		return;
 	}
 
+	if (interaction.customId.startsWith(CUSTOM_ID_MODAL_DAILY_SEC_PREFIX)) {
+		await refreshDailyAfterAdd(interaction, store, section);
+		return;
+	}
+
 	// Ad-hoc: only store, do not touch the existing post or daily
 	await interaction.reply({ content: "Saved.", ephemeral: true });
 }
@@ -600,7 +731,7 @@ async function deleteLastDailyMessage({ client, channelId, lastId }) {
 }
 
 // Helper: after saving in daily modal, refresh the daily post
-async function refreshDailyAfterAdd(interaction, store) {
+async function refreshDailyAfterAdd(interaction, store, section) {
 	await interaction.deferReply({ ephemeral: true });
 	try {
 		const channelId = interaction.channel.id;
@@ -616,7 +747,20 @@ async function refreshDailyAfterAdd(interaction, store) {
 		// Prune any past-due events before refreshing
 		prunePastEvents({ store, channelId, cutoffMs: getEtStartOfTodayUtcMs() });
 		const todayYmd = formatInTimeZone(new Date(), ET, "yyyy-MM-dd");
-		if (channelData?.lastPostId && channelData?.lastPostDate === todayYmd) {
+		if (Number.isFinite(section)) {
+			const entry = channelData?.lastPosts?.[String(section)];
+			if (entry?.id && entry?.date === todayYmd) {
+				await deleteLastDailyMessage({
+					client: interaction.client,
+					channelId,
+					lastId: entry.id,
+				});
+			}
+		} else if (
+			channelData?.lastPostId &&
+			channelData?.lastPostDate === todayYmd
+		) {
+			// Legacy single-daily cleanup
 			await deleteLastDailyMessage({
 				client: interaction.client,
 				channelId,
@@ -632,11 +776,21 @@ async function refreshDailyAfterAdd(interaction, store) {
 			});
 		} catch {}
 
-		await postDailyForChannel({
-			client: interaction.client,
-			channelId,
-			store,
-		});
+		if (Number.isFinite(section)) {
+			await postDailyForSection({
+				client: interaction.client,
+				channelId,
+				store,
+				section,
+			});
+		} else {
+			await postDailyForChannel({
+				client: interaction.client,
+				channelId,
+				store,
+			});
+		}
+
 		await saveEventsStore(store);
 		await interaction.editReply({
 			content: "Added event and refreshed daily post.",
@@ -759,7 +913,7 @@ const SECTION_TO_CLASSKEY = new Map([
 ]);
 
 // Reverse map for labeling (classKey -> section number)
-const CLASSKEY_TO_SECTION = new Map([
+const _CLASSKEY_TO_SECTION = new Map([
 	["maggio 2/3", 1],
 	["maggio 3/4", 2],
 	["hua 5/6", 3],
