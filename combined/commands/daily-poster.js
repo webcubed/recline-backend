@@ -90,7 +90,15 @@ export async function postDailyForChannel({ client, channelId, store }) {
 	const filtered = all.filter((event) => event.dueTimestamp >= startMs);
 	if (filtered.length === 0) return null;
 
-	const header = `Daily Homework — ${todayYmd}`;
+	// Build a header that shows the classes/sections represented today
+	const uniqueKeys = [...new Set(filtered.map((event) => event.classKey))];
+	const classesLabel = uniqueKeys
+		.map((key) => {
+			const section = CLASSKEY_TO_SECTION.get(key);
+			return section ? `${key} — Section ${section}` : key;
+		})
+		.join(" • ");
+	const header = `${classesLabel || "Daily Homework"} — ${todayYmd}`;
 	const payload = await renderForDaily({
 		events: filtered,
 		headerClass: header,
@@ -519,6 +527,39 @@ async function deleteAdhocPostsForChannel({ client, channelId }) {
 		await Promise.allSettled(deletions);
 		try {
 			await deleteChannelPostRecords(channelId);
+		} catch {}
+
+		// As a fallback (e.g., when index is missing), also scan recent messages
+		try {
+			const recent = await channel.messages.fetch({ limit: 50 });
+			const looksLikeAdhoc = (message) => {
+				if (!Array.isArray(message?.components)) return false;
+				for (const row of message.components) {
+					if (!Array.isArray(row?.components)) continue;
+					for (const comp of row.components) {
+						if (
+							comp?.customId &&
+							String(comp.customId).startsWith("hw_add_sec_")
+						) {
+							return true;
+						}
+					}
+				}
+
+				return false;
+			};
+
+			const extra = recent.filter((m) => looksLikeAdhoc(m));
+			const extraDeletions = [...extra.values()].map(async (m) => {
+				try {
+					try {
+						untrack(m.id);
+					} catch {}
+
+					await m.delete();
+				} catch {}
+			});
+			await Promise.allSettled(extraDeletions);
 		} catch {}
 
 		return records.length;
