@@ -1,5 +1,14 @@
 /* eslint-disable sort-imports */
-import { formatInTimeZone, utcToZonedTime } from "date-fns-tz";
+import { formatInTimeZone, utcToZonedTime, zonedTimeToUtc } from "date-fns-tz";
+import {
+	ActionRowBuilder,
+	ButtonBuilder,
+	ButtonStyle,
+	InteractionType,
+	ModalBuilder,
+	TextInputBuilder,
+	TextInputStyle,
+} from "discord.js";
 import { renderEmbed, renderImage, renderText } from "./homework-renderers.js";
 import {
 	ensureChannel,
@@ -8,7 +17,12 @@ import {
 	saveEventsStore,
 	setLastPost,
 } from "./homework-events-store.js";
-import { allowedSectionsForChannel } from "./allowed-channels.js";
+import {
+	allowedSectionsForChannel,
+	hasMonitorRole,
+	isChannelAllowed,
+} from "./allowed-channels.js";
+import { getStartTimeForPeriod } from "./bell-schedule.js";
 
 const ET = "America/New_York";
 
@@ -78,6 +92,17 @@ export async function postDailyForChannel({ client, channelId, store }) {
 		events: filtered,
 		headerClass: header,
 	});
+
+	// Attach edit/add button for monitor role users
+	const components = [
+		new ActionRowBuilder().addComponents(
+			new ButtonBuilder()
+				.setCustomId("hw_daily_add")
+				.setStyle(ButtonStyle.Primary)
+				.setLabel("Add/Edit")
+		),
+	];
+	payload.components = components;
 	let sent;
 	try {
 		sent = await channel.send(payload);
@@ -118,4 +143,318 @@ export async function bumpDailyIfNeeded({
 
 	await postDailyForChannel({ client, channelId, store });
 	await saveEventsStore(store);
+}
+
+// -------------------- Interactions for Add/Edit ---------------------------
+
+export async function handleDailyInteraction(interaction) {
+	try {
+		if (interaction.isButton() && interaction.customId === "hw_daily_add") {
+			if (!isChannelAllowed(interaction.channel.id)) {
+				await interaction.reply({
+					content: "This channel isn't configured for homework.",
+					ephemeral: true,
+				});
+				return true;
+			}
+
+			if (!hasMonitorRole(interaction.member)) {
+				await interaction.reply({
+					content: "You need the monitor role to edit.",
+					ephemeral: true,
+				});
+				return true;
+			}
+
+			await interaction.showModal(buildAddModal());
+			return true;
+		}
+
+		if (
+			interaction.type === InteractionType.ModalSubmit &&
+			interaction.customId === "hw_daily_add_modal"
+		) {
+			await handleAddModalSubmit(interaction);
+			return true;
+		}
+	} catch (error) {
+		try {
+			await (interaction.deferred || interaction.replied
+				? interaction.followUp({ content: "Edit failed.", ephemeral: true })
+				: interaction.reply({ content: "Edit failed.", ephemeral: true }));
+		} catch {}
+
+		console.error("[daily-edit] error", error);
+		return true;
+	}
+
+	return false;
+}
+
+function buildAddModal() {
+	const modal = new ModalBuilder()
+		.setCustomId("hw_daily_add_modal")
+		.setTitle("Add homework to daily");
+	const section = new TextInputBuilder()
+		.setCustomId("hw_section")
+		.setLabel("Section (1-7)")
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true);
+	const title = new TextInputBuilder()
+		.setCustomId("hw_title")
+		.setLabel("Title")
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true);
+	const due = new TextInputBuilder()
+		.setCustomId("hw_due")
+		.setLabel("Due date (e.g., November 7, 2025)")
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true);
+	const day = new TextInputBuilder()
+		.setCustomId("hw_day")
+		.setLabel("Day (A or B)")
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true);
+	const time = new TextInputBuilder()
+		.setCustomId("hw_time")
+		.setLabel("Time override (HH:MM[:SS], optional)")
+		.setStyle(TextInputStyle.Short)
+		.setRequired(false);
+
+	return modal.addComponents(
+		new ActionRowBuilder().addComponents(section),
+		new ActionRowBuilder().addComponents(title),
+		new ActionRowBuilder().addComponents(due),
+		new ActionRowBuilder().addComponents(day),
+		new ActionRowBuilder().addComponents(time)
+	);
+}
+
+async function handleAddModalSubmit(interaction) {
+	if (
+		!isChannelAllowed(interaction.channel.id) ||
+		!hasMonitorRole(interaction.member)
+	) {
+		await interaction.reply({ content: "Not allowed.", ephemeral: true });
+		return;
+	}
+
+	const sectionString = interaction.fields.getTextInputValue("hw_section");
+	const section = Number.parseInt(sectionString, 10);
+	const title = interaction.fields.getTextInputValue("hw_title");
+	const due = interaction.fields.getTextInputValue("hw_due");
+	const day = interaction.fields
+		.getTextInputValue("hw_day")
+		.trim()
+		.toUpperCase();
+	const time = interaction.fields.getTextInputValue("hw_time");
+
+	if (!Number.isFinite(section) || section < 1 || section > 7) {
+		await interaction.reply({
+			content: "Invalid section (1-7).",
+			ephemeral: true,
+		});
+		return;
+	}
+
+	if (!isValidDueDateInput(due)) {
+		await interaction.reply({ content: "Invalid due date.", ephemeral: true });
+		return;
+	}
+
+	if (day !== "A" && day !== "B") {
+		await interaction.reply({
+			content: "Day must be A or B.",
+			ephemeral: true,
+		});
+		return;
+	}
+
+	const classKey = SECTION_TO_CLASSKEY.get(section);
+	const event = computeEvent({ title, due, time, classKey, day });
+	const store = await loadEventsStore();
+	const allowedSections = allowedSectionsForChannel(interaction.channel.id);
+	ensureChannel(store, interaction.channel.id, allowedSections);
+	const sectionKey = String(section);
+	store.channels[interaction.channel.id].events[sectionKey] ||= [];
+	const isSameEvent = (item) =>
+		item.title === event.title && item.dueTimestamp === event.dueTimestamp;
+	const exists = store.channels[interaction.channel.id].events[sectionKey].some(
+		(item) => isSameEvent(item)
+	);
+	if (!exists) {
+		store.channels[interaction.channel.id].events[sectionKey].push(event);
+	}
+
+	await saveEventsStore(store);
+
+	// Refresh daily post now
+	await interaction.deferReply({ ephemeral: true });
+	await postDailyForChannel({
+		client: interaction.client,
+		channelId: interaction.channel.id,
+		store,
+	});
+	await saveEventsStore(store);
+	await interaction.editReply({
+		content: "Added event and refreshed daily post.",
+	});
+}
+
+// -------------- helpers (duplicated from type/send for now) --------------
+
+const SECTION_TO_CLASSKEY = new Map([
+	[1, "maggio 2/3"],
+	[2, "maggio 3/4"],
+	[3, "hua 5/6"],
+	[4, "maggio 6/7"],
+	[5, "chan 8/9"],
+	[6, "hua 7/8"],
+	[7, "chan 9/10"],
+]);
+
+function isValidDueDateInput(input) {
+	if (!input || typeof input !== "string") return false;
+	const cleaned = input.trim();
+	const match = cleaned.match(/^(\p{L}+)\s+(\d{1,2}),\s*(\d{4})$/u);
+	if (!match) return false;
+	const monthName = match[1].toLowerCase();
+	const day = Number.parseInt(match[2], 10);
+	const year = Number.parseInt(match[3], 10);
+	if (Number.isNaN(day) || Number.isNaN(year)) return false;
+	const months = [
+		"january",
+		"february",
+		"march",
+		"april",
+		"may",
+		"june",
+		"july",
+		"august",
+		"september",
+		"october",
+		"november",
+		"december",
+	];
+	if (!months.includes(monthName)) return false;
+	return day >= 1 && day <= 31 && year >= 1970 && year <= 9999;
+}
+
+function normalizeTime(input) {
+	if (!input) return null;
+	const s = String(input).trim().toLowerCase();
+	if (!s) return null;
+	// Try HH:MM[:SS] 24h
+	let m = s.match(/^(\d{1,2}):(\d{2})(?::(\d{2}))?$/u);
+	if (m) {
+		const hh = Number.parseInt(m[1], 10);
+		const mm = Number.parseInt(m[2], 10);
+		const ss = m[3] ? Number.parseInt(m[3], 10) : 0;
+		if (hh <= 23 && mm <= 59 && ss <= 59)
+			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:${String(ss).padStart(2, "0")}`;
+	}
+
+	// Try HHMM 24h
+	m = s.match(/^(\d{3,4})$/u);
+	if (m) {
+		const v = m[1];
+		const hh = Number.parseInt(
+			v.length === 3 ? v.slice(0, 1) : v.slice(0, 2),
+			10
+		);
+		const mm = Number.parseInt(v.length === 3 ? v.slice(1) : v.slice(2), 10);
+		if (hh <= 23 && mm <= 59)
+			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
+	}
+
+	// Try h[:mm] am/pm
+	m = s.match(/^(\d{1,2})(?::(\d{2}))?\s*(a|p)\.?m\.?$/u);
+	if (m) {
+		let hh = Number.parseInt(m[1], 10);
+		const mm = m[2] ? Number.parseInt(m[2], 10) : 0;
+		const pm = m[3] === "p";
+		if (hh === 12) hh = 0;
+		if (pm) hh += 12;
+		if (hh <= 23 && mm <= 59)
+			return `${String(hh).padStart(2, "0")}:${String(mm).padStart(2, "0")}:00`;
+	}
+
+	return null;
+}
+
+function defaultPeriodFor({ classKey, day, fallback }) {
+	const match = classKey.match(/(\d+)\/(\d+)/u);
+	if (!match) return fallback;
+	const first = Number.parseInt(match[1], 10);
+	const second = Number.parseInt(match[2], 10);
+	if (classKey.startsWith("chan ")) {
+		if (classKey.includes("9/10")) return day === "B" ? first : second; // 9 on B, 10 on A
+		if (classKey.includes("8/9")) return first; // 8 on both A and B
+	}
+
+	// Maggio rules
+	if (classKey.startsWith("maggio ")) {
+		if (classKey.includes("2/3")) return day === "A" ? 3 : first; // Period 3 on A, 2 on B
+		if (classKey.includes("3/4")) return day === "B" ? 3 : second; // Period 3 on B, 4 on A
+		if (classKey.includes("6/7")) return day === "A" ? 7 : first; // Period 7 on A, 6 on B
+	}
+
+	// Hua rules
+	if (classKey.startsWith("hua ")) {
+		if (classKey.includes("5/6")) return day === "A" ? 6 : first; // Period 6 on A, 5 on B
+		if (classKey.includes("7/8")) return day === "B" ? 7 : second; // Period 7 on B, 8 on A
+	}
+
+	return first;
+}
+
+function parseMonthDayToDate(input) {
+	const months = [
+		"january",
+		"february",
+		"march",
+		"april",
+		"may",
+		"june",
+		"july",
+		"august",
+		"september",
+		"october",
+		"november",
+		"december",
+	];
+	const parts = input.trim().replaceAll(",", "").split(/\s+/u);
+	const monthIndex = months.indexOf(parts[0].toLowerCase());
+	const day = Number.parseInt(parts[1], 10);
+	const inferredYear =
+		parts.length >= 3
+			? Number.parseInt(parts[2], 10)
+			: new Date().getFullYear();
+	const date = new Date(inferredYear, monthIndex, day, 0, 0, 0, 0);
+	return date;
+}
+
+function computeEvent(pending) {
+	const { title, due, time, classKey, day } = pending;
+	const date = parseMonthDayToDate(due); // Local components only
+
+	let timeString = normalizeTime(time);
+	if (!timeString) {
+		const selectedPeriod = defaultPeriodFor({
+			classKey,
+			day,
+			fallback: Number.parseInt((classKey.match(/(\d+)/u) ?? [])[0] ?? "8", 10),
+		});
+
+		timeString = getStartTimeForPeriod({ period: selectedPeriod });
+	}
+
+	const [hh, mm, ss] = timeString.split(":").map((n) => Number.parseInt(n, 10));
+	// Build a zoned time in America/New_York and convert to UTC millis
+	const year = date.getFullYear();
+	const month = date.getMonth();
+	const dayNumber = date.getDate();
+	const zoned = new Date(year, month, dayNumber, hh, mm, ss ?? 0, 0);
+	const utc = zonedTimeToUtc(zoned, ET);
+	return { title, classKey, dueTimestamp: utc.getTime() };
 }

@@ -6,6 +6,7 @@ import {
 } from "./send-homework.js";
 import { mockHomeworkCommand, handleMockHomework } from "./mock-homework.js";
 import { typeHomeworkCommand, handleTypeHomework } from "./type-homework.js";
+import { handleDailyInteraction } from "./daily-poster.js";
 import {
 	removeHomeworkCommand,
 	handleRemoveHomework,
@@ -48,7 +49,11 @@ export async function handleSlashInteraction(interaction) {
 			return;
 		}
 
-		// Non-chat interactions (modal submit, buttons, selects) → pass to homework flow
+		// Non-chat interactions (buttons, modals, selects)
+		// First, let the daily Add/Edit handler try to process it
+		const handled = await handleDailyInteraction(interaction);
+		if (handled) return;
+		// Otherwise, pass to the homework (modal/select/button) flow
 		await handleSendHomeworkInteraction(interaction);
 	} catch (error) {
 		const message = "There was an error handling your interaction.";

@@ -488,16 +488,30 @@ function parseMonthDayToDate(input) {
 	return date;
 }
 
+function withEditButton(payload) {
+	const row = new ActionRowBuilder().addComponents(
+		new ButtonBuilder()
+			.setCustomId("hw_daily_add")
+			.setStyle(ButtonStyle.Primary)
+			.setLabel("Add/Edit")
+	);
+	if (payload.components && Array.isArray(payload.components)) {
+		return { ...payload, components: [...payload.components, row] };
+	}
+
+	return { ...payload, components: [row] };
+}
+
 async function buildFinalPayload({ format, events, headerClass }) {
 	if (format === "text") {
-		return { content: renderText({ events, headerClass }) };
+		return withEditButton({ content: renderText({ events, headerClass }) });
 	}
 
 	if (format === "embed") {
-		return renderEmbed({ events, headerClass });
+		return withEditButton(renderEmbed({ events, headerClass }));
 	}
 
-	return renderImage({ events, headerClass });
+	return withEditButton(await renderImage({ events, headerClass }));
 }
 
 async function finalizeAndPost(interaction, session) {
