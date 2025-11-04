@@ -24,7 +24,12 @@ import {
 } from "./allowed-channels.js";
 import { getStartTimeForPeriod } from "./bell-schedule.js";
 import { trackImagePost, untrack } from "./homework-tracker.js";
-import { getPostRecord, upsertPostRecord } from "./post-index-store.js";
+import {
+	getPostRecord,
+	upsertPostRecord,
+	listChannelPostRecords,
+	deleteChannelPostRecords,
+} from "./post-index-store.js";
 
 const ET = "America/New_York";
 const CUSTOM_ID_DAILY_BUTTON = "hw_daily_add";
@@ -149,6 +154,11 @@ export async function bumpDailyIfNeeded({ client, channelId, authorIsBot }) {
 			} catch {}
 		}
 
+		// Also delete any ad-hoc posts previously sent in this channel
+		try {
+			await deleteAdhocPostsForChannel({ client, channelId });
+		} catch {}
+
 		await postDailyForChannel({ client, channelId, store });
 		await saveEventsStore(store);
 		return true;
@@ -178,7 +188,7 @@ export async function handleDailyInteraction(interaction) {
 					return true;
 				}
 
-				await interaction.showModal(buildAddModal({ includeSection: true }));
+				await interaction.showModal(buildAddModal({ includeSection: false }));
 				return true;
 			}
 
@@ -310,8 +320,9 @@ async function handleAddModalSubmit(interaction) {
 			section = Number.parseInt(rest, 10);
 		}
 	} else {
-		const sectionString = interaction.fields.getTextInputValue("hw_section");
-		section = Number.parseInt(sectionString, 10);
+		// Daily modal: infer section from channel's allowed sections; pick the first.
+		const allowed = allowedSectionsForChannel(interaction.channel.id);
+		section = allowed?.[0];
 	}
 
 	const title = interaction.fields.getTextInputValue("hw_title");
@@ -324,7 +335,7 @@ async function handleAddModalSubmit(interaction) {
 
 	if (!Number.isFinite(section) || section < 1 || section > 7) {
 		await interaction.reply({
-			content: "Invalid section (1-7).",
+			content: "Invalid or ambiguous section for this channel.",
 			ephemeral: true,
 		});
 		return;
@@ -465,6 +476,14 @@ async function refreshDailyAfterAdd(interaction, store) {
 			lastId: channelData?.lastPostId,
 		});
 
+		// Also remove any ad-hoc posts when refreshing daily via modal
+		try {
+			await deleteAdhocPostsForChannel({
+				client: interaction.client,
+				channelId,
+			});
+		} catch {}
+
 		await postDailyForChannel({
 			client: interaction.client,
 			channelId,
@@ -478,6 +497,33 @@ async function refreshDailyAfterAdd(interaction, store) {
 		await interaction.editReply({
 			content: `Saved, but failed to refresh daily: ${error?.message ?? "unknown"}`,
 		});
+	}
+}
+
+// Helper: delete ad-hoc posts for a channel and clear index
+async function deleteAdhocPostsForChannel({ client, channelId }) {
+	try {
+		const records = await listChannelPostRecords(channelId);
+		if (!records || records.length === 0) return 0;
+		const channel = await client.channels.fetch(channelId);
+		const deletions = records.map(async (r) => {
+			try {
+				try {
+					untrack(r.messageId);
+				} catch {}
+
+				const message = await channel.messages.fetch(r.messageId);
+				await message.delete();
+			} catch {}
+		});
+		await Promise.allSettled(deletions);
+		try {
+			await deleteChannelPostRecords(channelId);
+		} catch {}
+
+		return records.length;
+	} catch {
+		return 0;
 	}
 }
 

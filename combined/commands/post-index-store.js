@@ -77,3 +77,39 @@ export async function getPostRecord(messageId) {
 	const index = await loadPostIndex();
 	return index.posts?.[messageId];
 }
+
+export async function listChannelPostRecords(channelId) {
+	const index = await loadPostIndex();
+	const posts = index.posts ?? {};
+	return Object.values(posts).filter((p) => p.channelId === channelId);
+}
+
+export async function deletePostRecord(messageId) {
+	const index = await loadPostIndex();
+	if (index.posts && index.posts[messageId]) {
+		try {
+			delete index.posts[messageId];
+			await savePostIndex(index);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	return false;
+}
+
+export async function deleteChannelPostRecords(channelId) {
+	const index = await loadPostIndex();
+	if (!index.posts) return 0;
+	let count = 0;
+	for (const key of Object.keys(index.posts)) {
+		if (index.posts[key]?.channelId === channelId) {
+			delete index.posts[key];
+			count++;
+		}
+	}
+
+	await savePostIndex(index);
+	return count;
+}

@@ -44,6 +44,49 @@ export async function renderImage({ events, headerClass }) {
 	// Embed Lexend as WOFF2 via data URL so resvg or other renderers don't need network/fallbacks.
 	const fontFaceCss = await getEmbeddedLexendCss();
 	const baseTextCss = "text, tspan { font-family: 'Lexend'; }";
+
+	// Helper to escape XML entities in text content
+	const escapeXml = (s) =>
+		String(s)
+			.replaceAll("&", "&amp;")
+			.replaceAll("<", "&lt;")
+			.replaceAll(">", "&gt;")
+			.replaceAll('"', "&quot;")
+			.replaceAll("'", "&apos;");
+
+	// Basic word-wrapping on character count to avoid overflow in SVG
+	const wrapWords = (text, maxCharsPerLine) => {
+		const words = String(text ?? "").split(/\s+/u);
+		const lines = [];
+		let current = "";
+		for (const word of words) {
+			// If single word too long, hard-break it
+			if (word.length > maxCharsPerLine) {
+				if (current) {
+					lines.push(current.trim());
+					current = "";
+				}
+
+				for (let i = 0; i < word.length; i += maxCharsPerLine) {
+					lines.push(word.slice(i, i + maxCharsPerLine));
+				}
+
+				continue;
+			}
+
+			const next = current ? `${current} ${word}` : word;
+			if (next.length <= maxCharsPerLine) {
+				current = next;
+			} else {
+				if (current) lines.push(current.trim());
+				current = word;
+			}
+		}
+
+		if (current) lines.push(current.trim());
+		return lines.length > 0 ? lines : [""];
+	};
+
 	const rel = (ts) => {
 		const now = Date.now();
 		const diff = ts - now;
@@ -76,33 +119,55 @@ export async function renderImage({ events, headerClass }) {
 		return macchiato.green; // More than 3 days
 	};
 
-	const rowHeight = 72;
 	const titleY = 36;
 	const subTitleY = titleY + 22;
 	const marginUnderTitle = 44; // Space below subtitle
 	const startY = subTitleY + marginUnderTitle;
 
-	const items = events
-		.sort((a, b) => a.dueTimestamp - b.dueTimestamp)
-		.map(
-			(event, index) => `
-		<g transform="translate(24, ${startY + index * rowHeight})">
-			<rect x="0" y="-28" rx="10" ry="10" width="672" height="56" fill="${macchiato.surface0}"/>
-			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="17" fill="${macchiato.subtext0}">${
-				event.title
-			}</text>
+	// Layout constants for items
+	const maxCharsPerLine = 44; // Conservative char budget to avoid overlap with right-side date
+	const lineHeight = 20;
+	const minBlockHeight = 56; // Min height for each item block
+	const gapBetweenBlocks = 16;
+
+	const sortedEvents = events.sort((a, b) => a.dueTimestamp - b.dueTimestamp);
+	let cumulative = 0;
+	const items = sortedEvents
+		.map((event) => {
+			const lines = wrapWords(event.title, maxCharsPerLine).map((t) =>
+				escapeXml(t)
+			);
+			const blockHeight = Math.max(
+				minBlockHeight,
+				lines.length * lineHeight + 8
+			);
+			const groupY = startY + cumulative + blockHeight / 2;
+			cumulative += blockHeight + gapBetweenBlocks;
+
+			const dyStart = -((lines.length - 1) * lineHeight) / 2;
+			const lineSpans = lines
+				.map((line, i) => {
+					const dy = i === 0 ? dyStart : lineHeight;
+					return `<tspan x="24" dy="${dy}">${line}</tspan>`;
+				})
+				.join("");
+
+			return `
+		<g transform="translate(24, ${groupY})">
+			<rect x="0" y="-${blockHeight / 2}" rx="10" ry="10" width="672" height="${blockHeight}" fill="${macchiato.surface0}"/>
+			<text x="24" y="0" dominant-baseline="middle" font-family="Lexend" font-size="17" fill="${macchiato.subtext0}">${lineSpans}</text>
 			<text x="652" y="-8" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="15" font-weight="700" fill="${macchiato.blue}"><tspan>${formatInTimeZone(
 				new Date(event.dueTimestamp),
 				"America/New_York",
 				"MM/dd/yyyy"
 			)}</tspan></text>
 			<text x="652" y="12" dominant-baseline="middle" text-anchor="end" font-family="Lexend" font-size="13"><tspan fill="${urgencyColor(event.dueTimestamp)}">${rel(event.dueTimestamp)}</tspan></text>
-		</g>`
-		)
+		</g>`;
+		})
 		.join("");
 
 	const width = 720;
-	const height = startY + events.length * rowHeight + 24;
+	const height = startY + cumulative + 24;
 	const resolvedClass = headerClass || events[0]?.classKey || "Class";
 	const headerText = `Homework`;
 	const subHeaderText = `${resolvedClass}`;
