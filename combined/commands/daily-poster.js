@@ -16,6 +16,7 @@ import {
 	loadEventsStore,
 	saveEventsStore,
 	setLastPost,
+	removeEvents,
 } from "./homework-events-store.js";
 import {
 	allowedSectionsForChannel,
@@ -32,10 +33,13 @@ import {
 } from "./post-index-store.js";
 
 const ET = "America/New_York";
+
 const CUSTOM_ID_DAILY_BUTTON = "hw_daily_add";
+const CUSTOM_ID_DAILY_MANAGE = "hw_daily_manage";
 const CUSTOM_ID_ADHOC_PREFIX = "hw_add_sec_"; // E.g., hw_add_sec_5 for Section 5 posts
 const CUSTOM_ID_MODAL_DAILY = "hw_daily_add_modal";
 const CUSTOM_ID_MODAL_ADHOC_PREFIX = "hw_add_modal_sec_"; // E.g., hw_add_modal_sec_5 or hw_add_modal_sec_5_123456
+const CUSTOM_ID_DAILY_RM_SELECT = "hw_daily_rm_select";
 
 export function scheduleDailyPoster(client) {
 	const scheduleNext = () => {
@@ -81,12 +85,13 @@ export async function postDailyForChannel({ client, channelId, store }) {
 
 	const allowed = allowedSectionsForChannel(channelId);
 	ensureChannel(store, channelId, allowed);
+
+	// Compute ET start-of-today (UTC millis) and prune past-due events from the store
+	const startMs = getEtStartOfTodayUtcMs();
+	prunePastEvents({ store, channelId, cutoffMs: startMs });
+
 	const all = listAllEvents(store, channelId);
 	const todayYmd = formatInTimeZone(new Date(), ET, "yyyy-MM-dd");
-	const startOfToday = new Date(
-		formatInTimeZone(new Date(), ET, "yyyy-MM-dd'T'00:00:00")
-	);
-	const startMs = startOfToday.getTime();
 	const filtered = all.filter((event) => event.dueTimestamp >= startMs);
 	if (filtered.length === 0) return null;
 
@@ -108,7 +113,11 @@ export async function postDailyForChannel({ client, channelId, store }) {
 			new ButtonBuilder()
 				.setCustomId(CUSTOM_ID_DAILY_BUTTON)
 				.setStyle(ButtonStyle.Primary)
-				.setLabel("Add/Edit")
+				.setLabel("Add/Edit"),
+			new ButtonBuilder()
+				.setCustomId(CUSTOM_ID_DAILY_MANAGE)
+				.setStyle(ButtonStyle.Secondary)
+				.setLabel("Manage")
 		),
 	];
 
@@ -149,8 +158,12 @@ export async function bumpDailyIfNeeded({ client, channelId, authorIsBot }) {
 		if (allowed.length === 0) return false;
 		const store = await loadEventsStore();
 		ensureChannel(store, channelId, allowed);
-		const lastId = store.channels?.[channelId]?.lastPostId;
-		if (lastId) {
+		const chData = store.channels?.[channelId];
+		const lastId = chData?.lastPostId;
+		const lastDate = chData?.lastPostDate;
+		const todayYmd = formatInTimeZone(new Date(), ET, "yyyy-MM-dd");
+		// Only delete the previous daily if it is from today; keep yesterday's post for history
+		if (lastId && lastDate === todayYmd) {
 			try {
 				const channel = await client.channels.fetch(channelId);
 				const message = await channel.messages.fetch(lastId);
@@ -236,6 +249,60 @@ export async function handleDailyInteraction(interaction) {
 				);
 				return true;
 			}
+
+			if (interaction.customId === CUSTOM_ID_DAILY_MANAGE) {
+				if (!isChannelAllowed(interaction.channel.id)) {
+					await interaction.reply({
+						content: "This channel isn't configured for homework.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				if (!hasMonitorRole(interaction.member)) {
+					await interaction.reply({
+						content: "You need the monitor role to manage.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				// Build a select menu of current events (today onward) for removal
+				const store = await loadEventsStore();
+				const allowed = allowedSectionsForChannel(interaction.channel.id);
+				ensureChannel(store, interaction.channel.id, allowed);
+				const cutoff = getEtStartOfTodayUtcMs();
+				const all = listAllEvents(store, interaction.channel.id)
+					.filter((event) => event.dueTimestamp >= cutoff)
+					.slice(0, 25);
+				if (all.length === 0) {
+					await interaction.reply({
+						content: "No events to manage.",
+						ephemeral: true,
+					});
+					return true;
+				}
+
+				const { StringSelectMenuBuilder } = await import("discord.js");
+				const menu = new StringSelectMenuBuilder()
+					.setCustomId(CUSTOM_ID_DAILY_RM_SELECT)
+					.setMinValues(1)
+					.setMaxValues(Math.min(25, all.length))
+					.setPlaceholder("Select events to remove")
+					.addOptions(
+						all.map((ev) => ({
+							label: `${String(ev.title).slice(0, 80)}`,
+							description: `${formatInTimeZone(new Date(ev.dueTimestamp), ET, "MM/dd/yyyy")} — Sec ${ev.section}`,
+							value: `${ev.section}|${ev.dueTimestamp}|${encodeURIComponent(String(ev.title))}`,
+						}))
+					);
+				await interaction.reply({
+					content: "Select one or more events to remove.",
+					ephemeral: true,
+					components: [new ActionRowBuilder().addComponents(menu)],
+				});
+				return true;
+			}
 		}
 
 		if (
@@ -244,6 +311,33 @@ export async function handleDailyInteraction(interaction) {
 				interaction.customId.startsWith(CUSTOM_ID_MODAL_ADHOC_PREFIX))
 		) {
 			await handleAddModalSubmit(interaction);
+			return true;
+		}
+
+		// Handle daily removal select
+		if (
+			interaction.isStringSelectMenu?.() &&
+			interaction.customId === CUSTOM_ID_DAILY_RM_SELECT
+		) {
+			if (
+				!isChannelAllowed(interaction.channel.id) ||
+				!hasMonitorRole(interaction.member)
+			) {
+				await interaction.reply({ content: "Not allowed.", ephemeral: true });
+				return true;
+			}
+
+			const selections = interaction.values || [];
+			const store = await loadEventsStore();
+			for (const v of selections)
+				processRemovalSelection({
+					store,
+					channelId: interaction.channel.id,
+					value: v,
+				});
+
+			await saveEventsStore(store);
+			await refreshDailyAfterAdd(interaction, store);
 			return true;
 		}
 	} catch (error) {
@@ -258,6 +352,24 @@ export async function handleDailyInteraction(interaction) {
 	}
 
 	return false;
+}
+
+// Helper: apply one selection removal tuple "section|due|title"
+function processRemovalSelection({ store, channelId, value }) {
+	try {
+		const [sectionString, dueString, encTitle] = String(value).split("|");
+		const section = Number.parseInt(sectionString, 10);
+		const dueTimestamp = Number.parseInt(dueString, 10);
+		const title = decodeURIComponent(encTitle ?? "");
+		if (!Number.isFinite(section) || !Number.isFinite(dueTimestamp)) return;
+
+		removeEvents(
+			store,
+			channelId,
+			String(section),
+			(ev) => ev.title === title && ev.dueTimestamp === dueTimestamp
+		);
+	} catch {}
 }
 
 function buildAddModal(options) {
@@ -478,11 +590,16 @@ async function refreshDailyAfterAdd(interaction, store) {
 	try {
 		const channelId = interaction.channel.id;
 		const channelData = store.channels?.[channelId];
-		await deleteLastDailyMessage({
-			client: interaction.client,
-			channelId,
-			lastId: channelData?.lastPostId,
-		});
+		// Prune any past-due events before refreshing
+		prunePastEvents({ store, channelId, cutoffMs: getEtStartOfTodayUtcMs() });
+		const todayYmd = formatInTimeZone(new Date(), ET, "yyyy-MM-dd");
+		if (channelData?.lastPostId && channelData?.lastPostDate === todayYmd) {
+			await deleteLastDailyMessage({
+				client: interaction.client,
+				channelId,
+				lastId: channelData.lastPostId,
+			});
+		}
 
 		// Also remove any ad-hoc posts when refreshing daily via modal
 		try {
@@ -505,6 +622,42 @@ async function refreshDailyAfterAdd(interaction, store) {
 		await interaction.editReply({
 			content: `Saved, but failed to refresh daily: ${error?.message ?? "unknown"}`,
 		});
+	}
+}
+
+// Helper: get ET midnight for today as UTC milliseconds
+function getEtStartOfTodayUtcMs() {
+	const now = new Date();
+	const zoned = utcToZonedTime(now, ET);
+	const etMidnightLocal = new Date(
+		zoned.getFullYear(),
+		zoned.getMonth(),
+		zoned.getDate(),
+		0,
+		0,
+		0,
+		0
+	);
+	const utc = zonedTimeToUtc(etMidnightLocal, ET);
+	return utc.getTime();
+}
+
+// Helper: remove any events older than cutoffMs from the store in-place
+function prunePastEvents({ store, channelId, cutoffMs }) {
+	try {
+		const channel = store.channels?.[channelId];
+		if (!channel?.events) return 0;
+		let removed = 0;
+		for (const [sectionKey, array] of Object.entries(channel.events)) {
+			if (!Array.isArray(array)) continue;
+			const kept = array.filter((ev) => ev?.dueTimestamp >= cutoffMs);
+			removed += array.length - kept.length;
+			channel.events[sectionKey] = kept;
+		}
+
+		return removed;
+	} catch {
+		return 0;
 	}
 }
 
