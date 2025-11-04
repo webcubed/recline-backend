@@ -11,6 +11,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 import { renderEmbed, renderImage, renderText } from "./homework-renderers.js";
 import { getStartTimeForPeriod } from "./bell-schedule.js";
 import { trackImagePost } from "./homework-tracker.js";
+import { upsertPostRecord } from "./post-index-store.js";
 import {
 	allowedSectionsForChannel,
 	hasMonitorRole,
@@ -291,6 +292,17 @@ export async function handleTypeHomework(interaction) {
 				classKey,
 			});
 		}
+
+		// Index this post so ad-hoc Edit/Add modal can modify it later
+		try {
+			await upsertPostRecord({
+				messageId: sent.id,
+				channelId: sent.channelId,
+				classKey,
+				format,
+				events,
+			});
+		} catch {}
 
 		await interaction.followUp({
 			ephemeral: true,

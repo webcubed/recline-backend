@@ -23,12 +23,14 @@ import {
 	isChannelAllowed,
 } from "./allowed-channels.js";
 import { getStartTimeForPeriod } from "./bell-schedule.js";
+import { trackImagePost, untrack } from "./homework-tracker.js";
+import { getPostRecord, upsertPostRecord } from "./post-index-store.js";
 
 const ET = "America/New_York";
 const CUSTOM_ID_DAILY_BUTTON = "hw_daily_add";
 const CUSTOM_ID_ADHOC_PREFIX = "hw_add_sec_"; // E.g., hw_add_sec_5 for Section 5 posts
 const CUSTOM_ID_MODAL_DAILY = "hw_daily_add_modal";
-const CUSTOM_ID_MODAL_ADHOC_PREFIX = "hw_add_modal_sec_"; // E.g., hw_add_modal_sec_5
+const CUSTOM_ID_MODAL_ADHOC_PREFIX = "hw_add_modal_sec_"; // E.g., hw_add_modal_sec_5 or hw_add_modal_sec_5_123456
 
 export function scheduleDailyPoster(client) {
 	const scheduleNext = () => {
@@ -42,7 +44,6 @@ export function scheduleDailyPoster(client) {
 			try {
 				await postDailyForAll(client);
 			} finally {
-				// Schedule next run in 24h from this ET time
 				scheduleNext();
 			}
 		}, delay);
@@ -66,7 +67,6 @@ export async function postDailyForAll(client) {
 	}
 
 	await Promise.allSettled(tasks);
-
 	await saveEventsStore(store);
 }
 
@@ -81,13 +81,7 @@ export async function postDailyForChannel({ client, channelId, store }) {
 	const startOfToday = new Date(
 		formatInTimeZone(new Date(), ET, "yyyy-MM-dd'T'00:00:00")
 	);
-	const endOfToday = new Date(
-		formatInTimeZone(new Date(), ET, "yyyy-MM-dd'T'23:59:59")
-	);
 	const startMs = startOfToday.getTime();
-	const _endMs = endOfToday.getTime();
-
-	// Keep only upcoming and due-today (mark past due). Drop everything strictly before today
 	const filtered = all.filter((event) => event.dueTimestamp >= startMs);
 	if (filtered.length === 0) return null;
 
@@ -96,9 +90,7 @@ export async function postDailyForChannel({ client, channelId, store }) {
 		events: filtered,
 		headerClass: header,
 	});
-
-	// Attach edit/add button for monitor role users
-	const components = [
+	payload.components = [
 		new ActionRowBuilder().addComponents(
 			new ButtonBuilder()
 				.setCustomId(CUSTOM_ID_DAILY_BUTTON)
@@ -106,11 +98,19 @@ export async function postDailyForChannel({ client, channelId, store }) {
 				.setLabel("Add/Edit")
 		),
 	];
-	payload.components = components;
-	let sent;
+
 	try {
-		sent = await channel.send(payload);
+		const sent = await channel.send(payload);
 		setLastPost(store, channelId, sent.id, todayYmd);
+		try {
+			await trackImagePost({
+				channelId: sent.channelId,
+				messageId: sent.id,
+				events: filtered,
+				classKey: header,
+			});
+		} catch {}
+
 		return sent;
 	} catch {
 		return null;
@@ -118,7 +118,6 @@ export async function postDailyForChannel({ client, channelId, store }) {
 }
 
 async function renderForDaily({ events, headerClass }) {
-	// Default to image; embed fallback if image throws; final fallback to text
 	try {
 		return await renderImage({ events, headerClass });
 	} catch {}
@@ -130,33 +129,38 @@ async function renderForDaily({ events, headerClass }) {
 	return { content: renderText({ events, headerClass }) };
 }
 
-export async function bumpDailyIfNeeded({
-	client,
-	channelId,
-	authorIsBot = false,
-}) {
-	if (authorIsBot) return;
-	const store = await loadEventsStore();
-	const channelData = store.channels?.[channelId];
-	if (!channelData?.lastPostId) return;
+export async function bumpDailyIfNeeded({ client, channelId, authorIsBot }) {
 	try {
-		const channel = await client.channels.fetch(channelId);
-		const message = await channel.messages.fetch(channelData.lastPostId);
-		await message.delete();
-	} catch {}
+		if (authorIsBot) return false;
+		const allowed = allowedSectionsForChannel(channelId);
+		if (allowed.length === 0) return false;
+		const store = await loadEventsStore();
+		ensureChannel(store, channelId, allowed);
+		const lastId = store.channels?.[channelId]?.lastPostId;
+		if (lastId) {
+			try {
+				const channel = await client.channels.fetch(channelId);
+				const message = await channel.messages.fetch(lastId);
+				try {
+					untrack(lastId);
+				} catch {}
 
-	await postDailyForChannel({ client, channelId, store });
-	await saveEventsStore(store);
+				await message.delete();
+			} catch {}
+		}
+
+		await postDailyForChannel({ client, channelId, store });
+		await saveEventsStore(store);
+		return true;
+	} catch {
+		return false;
+	}
 }
 
-// -------------------- Interactions for Add/Edit ---------------------------
-
+// eslint-disable-next-line complexity
 export async function handleDailyInteraction(interaction) {
 	try {
 		if (interaction.isButton() && interaction.customId) {
-			// Two button types:
-			// 1) Daily: hw_daily_add (asks for Section)
-			// 2) Ad-hoc post: hw_add_sec_{section} (no Section in modal)
 			if (interaction.customId === CUSTOM_ID_DAILY_BUTTON) {
 				if (!isChannelAllowed(interaction.channel.id)) {
 					await interaction.reply({
@@ -207,11 +211,10 @@ export async function handleDailyInteraction(interaction) {
 					return true;
 				}
 
+				const messageId = interaction.message?.id;
+				const modalId = `${CUSTOM_ID_MODAL_ADHOC_PREFIX}${section}${messageId ? `_${messageId}` : ""}`;
 				await interaction.showModal(
-					buildAddModal({
-						includeSection: false,
-						modalId: `${CUSTOM_ID_MODAL_ADHOC_PREFIX}${section}`,
-					})
+					buildAddModal({ includeSection: false, modalId })
 				);
 				return true;
 			}
@@ -283,6 +286,7 @@ function buildAddModal(options) {
 	return modal.addComponents(...rows);
 }
 
+// eslint-disable-next-line complexity
 async function handleAddModalSubmit(interaction) {
 	if (
 		!isChannelAllowed(interaction.channel.id) ||
@@ -293,11 +297,18 @@ async function handleAddModalSubmit(interaction) {
 	}
 
 	let section;
+	let targetMessageId;
 	if (interaction.customId.startsWith(CUSTOM_ID_MODAL_ADHOC_PREFIX)) {
-		section = Number.parseInt(
-			interaction.customId.slice(CUSTOM_ID_MODAL_ADHOC_PREFIX.length),
-			10
+		const rest = interaction.customId.slice(
+			CUSTOM_ID_MODAL_ADHOC_PREFIX.length
 		);
+		if (rest.includes("_")) {
+			const [sec, messageIdString] = rest.split("_");
+			section = Number.parseInt(sec, 10);
+			targetMessageId = messageIdString;
+		} else {
+			section = Number.parseInt(rest, 10);
+		}
 	} else {
 		const sectionString = interaction.fields.getTextInputValue("hw_section");
 		section = Number.parseInt(sectionString, 10);
@@ -345,47 +356,129 @@ async function handleAddModalSubmit(interaction) {
 		(item) => isSameEvent(item)
 	);
 	if (!exists) {
+		// Always save to the store for persistence
 		store.channels[interaction.channel.id].events[sectionKey].push(event);
+	}
+
+	// If this was an ad-hoc edit targeting a specific message, update that original message
+	if (targetMessageId) {
+		try {
+			const record = await getPostRecord(targetMessageId);
+			if (record) {
+				record.events = [...(record.events || []), event];
+				await upsertPostRecord(record);
+				const channel = await interaction.client.channels.fetch(
+					record.channelId
+				);
+				const message = await channel.messages.fetch(record.messageId);
+				let newPayload;
+				if (record.format === "text") {
+					newPayload = {
+						content: renderText({
+							events: record.events,
+							headerClass: record.classKey,
+						}),
+					};
+				} else if (record.format === "embed") {
+					newPayload = renderEmbed({
+						events: record.events,
+						headerClass: record.classKey,
+					});
+				} else {
+					newPayload = await renderImage({
+						events: record.events,
+						headerClass: record.classKey,
+					});
+					// eslint-disable-next-line max-depth
+					try {
+						await trackImagePost({
+							channelId: record.channelId,
+							messageId: record.messageId,
+							events: record.events,
+							classKey: record.classKey,
+						});
+					} catch {}
+				}
+
+				// Preserve the Add/Edit button on the original message if it exists
+				if (
+					Array.isArray(message.components) &&
+					message.components.length > 0
+				) {
+					newPayload.components = message.components;
+				}
+
+				await message.edit(newPayload);
+				await interaction.reply({
+					content: "Saved and updated post.",
+					ephemeral: true,
+				});
+			} else {
+				await interaction.reply({ content: "Saved.", ephemeral: true });
+			}
+		} catch (error) {
+			await interaction.reply({
+				content: `Saved, but failed to update: ${error?.message ?? "unknown"}`,
+				ephemeral: true,
+			});
+		}
+
+		await saveEventsStore(store);
+		return;
 	}
 
 	await saveEventsStore(store);
 
 	// If this came from daily post flow, replace last daily and post a fresh one.
 	if (interaction.customId === CUSTOM_ID_MODAL_DAILY) {
-		await interaction.deferReply({ ephemeral: true });
-		try {
-			const channelData = store.channels?.[interaction.channel.id];
-			const lastId = channelData?.lastPostId;
-			if (lastId) {
-				try {
-					const channel = await interaction.client.channels.fetch(
-						interaction.channel.id
-					);
-					const message = await channel.messages.fetch(lastId);
-					await message.delete();
-				} catch {}
-			}
-
-			await postDailyForChannel({
-				client: interaction.client,
-				channelId: interaction.channel.id,
-				store,
-			});
-			await saveEventsStore(store);
-			await interaction.editReply({
-				content: "Added event and refreshed daily post.",
-			});
-			return;
-		} catch (error) {
-			await interaction.editReply({
-				content: `Saved, but failed to refresh daily: ${error?.message ?? "unknown"}`,
-			});
-			return;
-		}
+		await refreshDailyAfterAdd(interaction, store);
+		return;
 	}
 
 	// Ad-hoc: only store, do not touch the existing post or daily
 	await interaction.reply({ content: "Saved.", ephemeral: true });
+}
+
+// Helper: delete last daily message for channel (untrack + delete)
+async function deleteLastDailyMessage({ client, channelId, lastId }) {
+	if (!lastId) return;
+	try {
+		const channel = await client.channels.fetch(channelId);
+		const message = await channel.messages.fetch(lastId);
+		try {
+			untrack(lastId);
+		} catch {}
+
+		await message.delete();
+	} catch {}
+}
+
+// Helper: after saving in daily modal, refresh the daily post
+async function refreshDailyAfterAdd(interaction, store) {
+	await interaction.deferReply({ ephemeral: true });
+	try {
+		const channelId = interaction.channel.id;
+		const channelData = store.channels?.[channelId];
+		await deleteLastDailyMessage({
+			client: interaction.client,
+			channelId,
+			lastId: channelData?.lastPostId,
+		});
+
+		await postDailyForChannel({
+			client: interaction.client,
+			channelId,
+			store,
+		});
+		await saveEventsStore(store);
+		await interaction.editReply({
+			content: "Added event and refreshed daily post.",
+		});
+	} catch (error) {
+		await interaction.editReply({
+			content: `Saved, but failed to refresh daily: ${error?.message ?? "unknown"}`,
+		});
+	}
 }
 
 // -------------- helpers (duplicated from type/send for now) --------------

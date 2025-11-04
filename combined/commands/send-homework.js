@@ -16,6 +16,7 @@ import { zonedTimeToUtc } from "date-fns-tz";
 import { renderEmbed, renderImage, renderText } from "./homework-renderers.js";
 import { getStartTimeForPeriod } from "./bell-schedule.js";
 import { trackImagePost } from "./homework-tracker.js";
+import { upsertPostRecord } from "./post-index-store.js";
 
 export const sendHomeworkCommand = new SlashCommandBuilder()
 	.setName("sendhomework")
@@ -638,6 +639,17 @@ async function finalizeAndPost(interaction, session) {
 			classKey: session.classKey || mostLikelyClass(session.events),
 		});
 	}
+
+	// Index this post so ad-hoc Edit/Add modal can modify it later
+	try {
+		await upsertPostRecord({
+			messageId: sent.id,
+			channelId: sent.channelId,
+			classKey: session.classKey || mostLikelyClass(session.events),
+			format: session.format,
+			events: session.events,
+		});
+	} catch {}
 
 	sessions.delete(interaction.user.id);
 	await respond({ content: "Posted homework.", components: [] });
