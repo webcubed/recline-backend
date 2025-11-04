@@ -21,6 +21,11 @@ import {
 	startAdaptiveImageUpdates,
 	untrack,
 } from "./commands/homework-tracker.js";
+import {
+	bumpDailyIfNeeded,
+	scheduleDailyPoster,
+} from "./commands/daily-poster.js";
+import { isChannelAllowed } from "./commands/allowed-channels.js";
 
 const version = fs
 	.readFileSync("./version.txt", "utf8")
@@ -119,6 +124,9 @@ client.once("ready", async () => {
 
 	// Start adaptive updates for images with finer time granularity
 	startAdaptiveImageUpdates(client);
+
+	// Schedule the daily homework poster at 3:35 PM ET
+	scheduleDailyPoster(client);
 });
 client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	if (newPresence.status === PresenceUpdateStatus.Offline) {
@@ -155,6 +163,18 @@ client.on("presenceUpdate", async (oldPresence, newPresence) => {
 	}
 });
 client.on("messageCreate", async (message) => {
+	// Sticky daily post bumping inside allowed channels: if a user sends any message,
+	// delete and re-send the daily post so it's on top. Ignore bot authors.
+	try {
+		if (isChannelAllowed(message.channelId) && !message.author?.bot) {
+			await bumpDailyIfNeeded({
+				client,
+				channelId: message.channelId,
+				authorIsBot: Boolean(message.author?.bot),
+			});
+		}
+	} catch {}
+
 	if (message.channelId !== process.env.CHANNEL_ID) {
 		return;
 	}

@@ -8,6 +8,17 @@ import { zonedTimeToUtc } from "date-fns-tz";
 import { renderEmbed, renderImage, renderText } from "./homework-renderers.js";
 import { getStartTimeForPeriod } from "./bell-schedule.js";
 import { trackImagePost } from "./homework-tracker.js";
+import {
+	allowedSectionsForChannel,
+	hasMonitorRole,
+	isChannelAllowed,
+} from "./allowed-channels.js";
+import {
+	addEvents,
+	ensureChannel,
+	loadEventsStore,
+	saveEventsStore,
+} from "./homework-events-store.js";
 
 // Section -> classKey mapping (reverse of the Section name mapping used elsewhere)
 const SECTION_TO_CLASSKEY = new Map([
@@ -42,7 +53,7 @@ function classLabelFor(key) {
 
 export const typeHomeworkCommand = new SlashCommandBuilder()
 	.setName("typehomework")
-	.setDescription("Type homework as text lines and post it")
+	.setDescription("Type homework as text lines; store or post it")
 	.addStringOption((opt) =>
 		opt
 			.setName("format")
@@ -60,6 +71,14 @@ export const typeHomeworkCommand = new SlashCommandBuilder()
 			.setDescription("Channel to post into (defaults to current)")
 			.addChannelTypes(ChannelType.GuildText)
 			.setRequired(false)
+	)
+	.addBooleanOption((opt) =>
+		opt
+			.setName("storeonly")
+			.setDescription(
+				"Store events only (don't post now). Defaults to true in allowed channels."
+			)
+			.setRequired(false)
 	);
 
 export async function handleTypeHomework(interaction) {
@@ -71,6 +90,7 @@ export async function handleTypeHomework(interaction) {
 	}
 
 	const format = interaction.options.getString("format");
+	const requestedStoreOnly = interaction.options.getBoolean("storeonly");
 	const target =
 		interaction.options.getChannel("target") ?? interaction.channel;
 
@@ -108,6 +128,7 @@ export async function handleTypeHomework(interaction) {
 
 	const events = [];
 	let classKey; // Derived from section
+	let sectionNumber; // Numeric section (1-7)
 	const collectedMessageIds = [];
 	let done = false;
 
@@ -134,6 +155,7 @@ export async function handleTypeHomework(interaction) {
 					);
 				} else {
 					classKey = SECTION_TO_CLASSKEY.get(sec);
+					sectionNumber = sec;
 				}
 
 				continue;
@@ -191,6 +213,47 @@ export async function handleTypeHomework(interaction) {
 					: "No valid section number was provided.",
 			});
 			return;
+		}
+
+		// Decide behavior: store to events DB or post immediately
+		const storeOnly = requestedStoreOnly ?? true;
+		const inAllowedChannel = isChannelAllowed(interaction.channel.id);
+		const userHasRole = hasMonitorRole(interaction.member);
+		if (storeOnly) {
+			if (!inAllowedChannel || !userHasRole) {
+				await interaction.followUp({
+					ephemeral: true,
+					content: [
+						"Not allowed to store in this channel.",
+						inAllowedChannel
+							? "You need the monitor role to store."
+							: "This channel isn't configured for sections.",
+						"If you just want to test-post, re-run with storeonly = false.",
+					].join("\n"),
+				});
+				return;
+			}
+
+			try {
+				const store = await loadEventsStore();
+				const allowedSections = allowedSectionsForChannel(
+					interaction.channel.id
+				);
+				ensureChannel(store, interaction.channel.id, allowedSections);
+				addEvents(store, interaction.channel.id, String(sectionNumber), events);
+				await saveEventsStore(store);
+				await interaction.followUp({
+					ephemeral: true,
+					content: `Saved ${events.length} event${events.length === 1 ? "" : "s"} for Section ${sectionNumber} in this channel.`,
+				});
+				return;
+			} catch (error) {
+				await interaction.followUp({
+					ephemeral: true,
+					content: `Failed to save events: ${error?.message ?? "unknown error"}`,
+				});
+				return;
+			}
 		}
 
 		// Echo a summary before sending

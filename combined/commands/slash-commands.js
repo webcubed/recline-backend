@@ -6,6 +6,10 @@ import {
 } from "./send-homework.js";
 import { mockHomeworkCommand, handleMockHomework } from "./mock-homework.js";
 import { typeHomeworkCommand, handleTypeHomework } from "./type-homework.js";
+import {
+	removeHomeworkCommand,
+	handleRemoveHomework,
+} from "./remove-homework.js";
 
 const commandBuilders = [
 	new SlashCommandBuilder()
@@ -14,6 +18,7 @@ const commandBuilders = [
 	sendHomeworkCommand,
 	mockHomeworkCommand,
 	typeHomeworkCommand,
+	removeHomeworkCommand,
 ];
 
 export const commands = commandBuilders.map((c) => c.toJSON());
@@ -25,6 +30,7 @@ const handlers = {
 	},
 	testhomework: handleMockHomework,
 	typehomework: handleTypeHomework,
+	removehomework: handleRemoveHomework,
 };
 
 export async function handleSlashInteraction(interaction) {
