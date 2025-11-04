@@ -1,5 +1,8 @@
 /* eslint-disable sort-imports */
 import {
+	ActionRowBuilder,
+	ButtonBuilder,
+	ButtonStyle,
 	ChannelType,
 	PermissionsBitField,
 	SlashCommandBuilder,
@@ -266,6 +269,7 @@ export async function handleTypeHomework(interaction) {
 			format,
 			events,
 			headerClass: classLabelFor(classKey),
+			sectionNumber,
 		});
 
 		let sent;
@@ -479,16 +483,27 @@ function parseMonthDayToDate(input) {
 	return date;
 }
 
-async function buildFinalPayload({ format, events, headerClass }) {
+async function buildFinalPayload({
+	format,
+	events,
+	headerClass,
+	sectionNumber,
+}) {
 	if (format === "text") {
-		return withEditButton({ content: renderText({ events, headerClass }) });
+		return withEditButton(
+			{ content: renderText({ events, headerClass }) },
+			sectionNumber
+		);
 	}
 
 	if (format === "embed") {
-		return withEditButton(renderEmbed({ events, headerClass }));
+		return withEditButton(renderEmbed({ events, headerClass }), sectionNumber);
 	}
 
-	return withEditButton(await renderImage({ events, headerClass }));
+	return withEditButton(
+		await renderImage({ events, headerClass }),
+		sectionNumber
+	);
 }
 
 function buildPreviewContent({ events, classKey, final = false }) {
@@ -503,10 +518,15 @@ function buildPreviewContent({ events, classKey, final = false }) {
 	return [header, `Events: ${count}`, "", text].join("\n");
 }
 
-function withEditButton(payload) {
+function withEditButton(payload, sectionNumber) {
+	const section = Number.parseInt(sectionNumber, 10);
+	const customId =
+		Number.isFinite(section) && section >= 1 && section <= 7
+			? `hw_add_sec_${section}`
+			: "hw_add_sec_1"; // Fallback, though section should always be set here
 	const row = new ActionRowBuilder().addComponents(
 		new ButtonBuilder()
-			.setCustomId("hw_daily_add")
+			.setCustomId(customId)
 			.setStyle(ButtonStyle.Primary)
 			.setLabel("Add/Edit")
 	);

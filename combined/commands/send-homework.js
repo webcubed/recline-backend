@@ -56,6 +56,42 @@ function classLabelFor(key) {
 	return section ? `${key} — ${section}` : key;
 }
 
+function sectionNumberFor(key) {
+	switch (key) {
+		case "maggio 2/3": {
+			return 1;
+		}
+
+		case "maggio 3/4": {
+			return 2;
+		}
+
+		case "hua 5/6": {
+			return 3;
+		}
+
+		case "maggio 6/7": {
+			return 4;
+		}
+
+		case "chan 8/9": {
+			return 5;
+		}
+
+		case "hua 7/8": {
+			return 6;
+		}
+
+		case "chan 9/10": {
+			return 7;
+		}
+
+		default: {
+			return undefined;
+		}
+	}
+}
+
 const CLASS_KEYS = [
 	"chan 8/9",
 	"chan 9/10",
@@ -488,10 +524,15 @@ function parseMonthDayToDate(input) {
 	return date;
 }
 
-function withEditButton(payload) {
+function withEditButton(payload, sectionNumber) {
+	const section = Number.parseInt(sectionNumber, 10);
+	const customId =
+		Number.isFinite(section) && section >= 1 && section <= 7
+			? `hw_add_sec_${section}`
+			: "hw_add_sec_1"; // Fallback
 	const row = new ActionRowBuilder().addComponents(
 		new ButtonBuilder()
-			.setCustomId("hw_daily_add")
+			.setCustomId(customId)
 			.setStyle(ButtonStyle.Primary)
 			.setLabel("Add/Edit")
 	);
@@ -502,16 +543,27 @@ function withEditButton(payload) {
 	return { ...payload, components: [row] };
 }
 
-async function buildFinalPayload({ format, events, headerClass }) {
+async function buildFinalPayload({
+	format,
+	events,
+	headerClass,
+	sectionNumber,
+}) {
 	if (format === "text") {
-		return withEditButton({ content: renderText({ events, headerClass }) });
+		return withEditButton(
+			{ content: renderText({ events, headerClass }) },
+			sectionNumber
+		);
 	}
 
 	if (format === "embed") {
-		return withEditButton(renderEmbed({ events, headerClass }));
+		return withEditButton(renderEmbed({ events, headerClass }), sectionNumber);
 	}
 
-	return withEditButton(await renderImage({ events, headerClass }));
+	return withEditButton(
+		await renderImage({ events, headerClass }),
+		sectionNumber
+	);
 }
 
 async function finalizeAndPost(interaction, session) {
@@ -556,6 +608,9 @@ async function finalizeAndPost(interaction, session) {
 		format: session.format,
 		events: session.events,
 		headerClass: classLabelFor(
+			session.classKey || mostLikelyClass(session.events)
+		),
+		sectionNumber: sectionNumberFor(
 			session.classKey || mostLikelyClass(session.events)
 		),
 	});
