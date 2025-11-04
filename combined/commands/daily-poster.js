@@ -482,28 +482,36 @@ async function handleAddModalSubmit(interaction) {
 	}
 
 	const classKey = SECTION_TO_CLASSKEY.get(section);
-	const event = computeEvent({ title, due, time, classKey, day });
+	let event = computeEvent({ title, due, time, classKey, day });
 	const store = await loadEventsStore();
 	const allowedSections = allowedSectionsForChannel(interaction.channel.id);
 	ensureChannel(store, interaction.channel.id, allowedSections);
 	const sectionKey = String(section);
 	store.channels[interaction.channel.id].events[sectionKey] ||= [];
-	const isSameEvent = (item) =>
-		item.title === event.title && item.dueTimestamp === event.dueTimestamp;
-	const exists = store.channels[interaction.channel.id].events[sectionKey].some(
-		(item) => isSameEvent(item)
-	);
-	if (!exists) {
-		// Always save to the store for persistence
-		store.channels[interaction.channel.id].events[sectionKey].push(event);
-	}
+	// Replace-on-title: if an event with the same title exists in this section, replace it
+	const list = store.channels[interaction.channel.id].events[sectionKey];
+	const idxByTitle = list.findIndex((item) => item.title === event.title);
+	if (idxByTitle === -1) list.push(event);
+	else list[idxByTitle] = event;
 
 	// If this was an ad-hoc edit targeting a specific message, update that original message
 	if (targetMessageId) {
 		try {
 			const record = await getPostRecord(targetMessageId);
 			if (record) {
-				record.events = [...(record.events || []), event];
+				// For ad-hoc posts, align event classKey with the original record to avoid header drift
+				event = computeEvent({
+					title,
+					due,
+					time,
+					classKey: record.classKey,
+					day,
+				});
+				const current = Array.isArray(record.events) ? [...record.events] : [];
+				const i = current.findIndex((ev) => ev.title === event.title);
+				if (i === -1) current.push(event);
+				else current[i] = event;
+				record.events = current;
 				await upsertPostRecord(record);
 				const channel = await interaction.client.channels.fetch(
 					record.channelId
